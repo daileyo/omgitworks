@@ -28,7 +28,16 @@ var worktreeRefreshCmd = &cobra.Command{
 For each repository, runs git worktree repair, then git worktree prune, then
 git worktree list, and rebuilds the stored worktree entries from the result.
 Worktrees created or deleted outside omgitworks are picked up, and whether
-each worktree sits in the projects root is recomputed.
+each worktree sits in the projects root is recomputed. Each repository whose
+stored data changed is listed with what changed, followed by a summary.
+
+This updates worktree data only. Discovering new repositories, re-detecting
+git users, and clearing the status cache remain with 'omgw refresh'.
+
+Repair runs before prune so that a worktree whose link is broken but whose
+directory still exists is fixed rather than discarded. Use --dry-run to see
+what would change: it runs neither repair nor prune, since both change git
+state, and saves nothing.
 
 Targeting:
 
@@ -40,7 +49,14 @@ Targeting:
 
 Unlike 'worktree add' and 'worktree remove', omitting the repo argument means
 every repository, not the current one, and a name pattern matching several
-repositories refreshes all of them.`,
+repositories refreshes all of them.
+
+Examples:
+  gws worktree refresh                   # Re-sync every repo
+  gws worktree refresh my-repo           # Only repos matching my-repo
+  gws worktree refresh .                 # Only the current repo
+  gws worktree refresh -t backend        # Every repo tagged backend
+  gws worktree refresh --dry-run         # Preview without changing anything`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := runWorktreeRefreshCommand(args, os.Stdout)

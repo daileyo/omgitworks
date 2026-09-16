@@ -2,7 +2,7 @@
 
 > Source spec: `docs/specs/28-spec-worktree-refresh/28-spec-worktree-refresh.md`
 >
-> Depends on: **spec 25** (`worktree-repo-context`) for `repocontext.ResolveCurrent` and the `worktreeScope` model; **spec 26** (`worktree-add-by-tag`) for the `--tag` AND-semantics precedent. This branch's base is `feat/worktree-remove` (`9bae1a6`), which carries specs 25, 26, and **27**.
+> Depends on: **spec 25** (`worktree-repo-context`) for `repocontext.ResolveCurrent` and the `worktreeScope` model; **spec 26** (`worktree-add-by-tag`) for the `--tag` AND-semantics precedent. This branch's base is `feat/worktree-remove` (`9bae1a6`), which carries specs 25, 26, and **27**. *Rebased again during task 6.0* onto `13db8d0`, spec 27's shell-routing fix.
 >
 > *Rebased during task 1.0:* planning assumed a base of `feat/worktree-add-by-tag` (`f4b0601`). Spec 27, developed in parallel on a sibling branch, added a fourth copy of the re-discovery sequence that this spec's consolidation could not see. The two branches merge with no conflict and no test failure, so nothing automated would have caught the duplicate. The branch was rebased onto spec 27 so task 1.0 could absorb that copy.
 
@@ -44,6 +44,16 @@ Items the validation phase must cover explicitly, beyond the spec's own requirem
 - **`worktree add` behavior changed in the same way** (task 1.6), and so did
   **`worktree align`** (planning audit flag 1, which has no align-specific test). Validate
   both on the same basis.
+
+- **Every non-navigating `worktree` subcommand must be added to the shell wrappers' passthrough lists.**
+  The `omgw` function in `shellinit.go` (zsh, bash, and PowerShell templates) treats any
+  unlisted `worktree` subcommand as navigation: it appends `-q`, captures stdout as a
+  destination, and `cd`s. Spec 27's `remove`/`rm` had this bug (fixed in `13db8d0`) and spec 28's
+  `refresh` initially had it; neither spec's requirements mentioned the lists, and tests
+  calling Go functions or the binary directly cannot catch it. Validate that `refresh` is
+  routed as a passthrough by the exec tests, and treat this as a checklist item for any
+  future `worktree` subcommand. PowerShell's list is verified by string test only where
+  `pwsh` is unavailable.
 
 ## Relevant Files
 
@@ -206,7 +216,7 @@ Deliver spec Unit 3: `--dry-run` reports what a refresh would change and exits w
 - [x] 5.6 Write `worktree_refresh_dryrun_test.go` covering the five test proof artifacts above, reading the config file bytes directly with `os.ReadFile` for the byte-identity assertion. *As built:* reuses spec 27's `configBytes` helper instead of a new one. Adds `TestWorktreeRefreshDryRun_FilesystemUntouched` for the spec's "filesystem untouched" clause: it backdates every entry under HOME, the workspace, and the external worktrees, then compares size, mode, modification time, and content hash. The backdating is load-bearing. File timestamps come from a coarse kernel clock, and without it a mutant that re-saved identical configuration went undetected. `DoesNotRepair` checks the missing `.git` file directly rather than through `worktree list`.
 - [x] 5.7 Capture the dry-run-then-real-run CLI transcript into `28-proofs/`.
 
-### [ ] 6.0 Document the command and clarify its scope in help text
+### [x] 6.0 Document the command and clarify its scope in help text
 
 Add `omgw worktree refresh` to `docs/site/commands-core.md` beside the existing `worktree list` and `worktree align` sections, and update `worktreeCmd`'s subcommand list. Per the spec's technical considerations, the help text must state explicitly that `worktree refresh` updates worktree data only, so users do not expect repository discovery from it.
 
@@ -215,12 +225,13 @@ Add `omgw worktree refresh` to `docs/site/commands-core.md` beside the existing 
 - CLI: `omgw worktree refresh --help` output showing all four targeting forms, `--dry-run`, and a sentence stating that only worktree data is updated, demonstrating the naming-overlap clarification is delivered
 - CLI: `omgw worktree --help` lists `refresh` among the subcommands, demonstrating registration and discoverability
 - Diff: `docs/site/commands-core.md` gains a `worktree refresh` section structured like the existing `worktree align` section at line 572, demonstrating documentation parity
-- CLI: `make docs` starts the MkDocs server with no warnings referencing the new section, demonstrating the documentation is well-formed
+- CLI: `make docs` starts the MkDocs server with no warnings referencing the new section, demonstrating the documentation is well-formed. *Amended during implementation:* `make docs` runs `mkdocs serve`, which never exits and creates `.venv` in the repository. The evidence is instead `mkdocs build --strict`, run from a scratch virtualenv with the pinned `docs/requirements.txt`. MkDocs 1.5.3 does not validate in-page anchors, so the rendered HTML is also checked for every anchor the new text links to
 
 #### 6.0 Tasks
 
-- [ ] 6.1 Write `worktreeRefreshCmd.Long` covering what the command does, the four targeting forms, and `--dry-run`, with an Examples block matching the style of `worktreeAlignCmd.Long`.
-- [ ] 6.2 State explicitly in `Long` that `worktree refresh` updates worktree metadata only, and that repository discovery, user detection, and status-cache clearing remain with `omgw refresh`.
-- [ ] 6.3 Add `gws worktree refresh [repo|.]` to the `Subcommands:` list in `worktreeCmd.Long` in `worktree.go`.
-- [ ] 6.4 Add a `worktree refresh` section to `docs/site/commands-core.md` following the `worktree align` section's structure, with a usage line, the targeting forms, and examples.
-- [ ] 6.5 Run `make docs` and confirm the new section renders without warnings, then capture the two `--help` transcripts into `28-proofs/`.
+- [x] 6.1 Write `worktreeRefreshCmd.Long` covering what the command does, the four targeting forms, and `--dry-run`, with an Examples block matching the style of `worktreeAlignCmd.Long`.
+- [x] 6.2 State explicitly in `Long` that `worktree refresh` updates worktree metadata only, and that repository discovery, user detection, and status-cache clearing remain with `omgw refresh`.
+- [x] 6.3 Add `gws worktree refresh [repo|.]` to the `Subcommands:` list in `worktreeCmd.Long` in `worktree.go`.
+- [x] 6.4 Add a `worktree refresh` section to `docs/site/commands-core.md` following the `worktree align` section's structure, with a usage line, the targeting forms, and examples. *As built:* the section is placed after `Remove Worktrees`, the newest worktree command. Three existing passages that would otherwise be inaccurate were also updated: the workspace `Refresh Workspace` section now points to the scoped command; `Current-Repository Targeting` lists `refresh` among commands accepting `.`, says bare `refresh` means all repositories, and recommends `omgw worktree refresh` over a full `omgw refresh` for an unrecorded worktree; and `configuration.md` names `worktree refresh` among the commands that update worktree data.
+- [x] 6.5 Run `make docs` and confirm the new section renders without warnings, then capture the two `--help` transcripts into `28-proofs/`. *As built:* see the amended proof artifact above: `mkdocs build --strict` plus an anchor check in the rendered HTML, not `make docs`.
+- [x] 6.6 *Added during implementation.* Route `worktree refresh` through the `omgw` shell function as a passthrough. The bash, zsh, and PowerShell wrappers in `shellinit.go` hard-code `list|align|add`, so any other `worktree` subcommand falls to the navigation branch, which appends `-q`, captures stdout as a destination, and `cd`s. Through `omgw`, refresh's report was swallowed. Add `refresh` to all three lists, extend the exec-test stub and `TestShellWrapperWorktreePassthrough`, and update `shell-integration.md`. The same bug affected spec 27's `remove`/`rm`; it was reported to the spec 27 session and fixed there in `13db8d0` (PR #102). This branch was then rebased onto `13db8d0` with the user's approval, resolving the overlapping list edits as the union `list|align|add|remove|rm|refresh`.
