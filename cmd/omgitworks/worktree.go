@@ -122,3 +122,72 @@ func worktreeScopeFor(cfg *config.Config, arg string) (worktreeScope, error) {
 		return worktreeScope{NamePattern: arg, Label: arg}, nil
 	}
 }
+
+// completeBranchNames suggests local branch names from the repository at
+// repoPath, filtered on the typed prefix the same way completeRepoNames filters
+// repository names.
+func completeBranchNames(repoPath, toComplete string) ([]string, cobra.ShellCompDirective) {
+	all, err := git.ListBranches(repoPath)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var branches []string
+	for _, b := range all {
+		if strings.HasPrefix(strings.ToLower(b), strings.ToLower(toComplete)) {
+			branches = append(branches, b)
+		}
+	}
+	return branches, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeWorktreeAddArgs completes "worktree add [repo] <branch>".
+//
+// The first positional is ambiguous by design: it is a branch when the working
+// directory resolves to a tracked repository, and a repository name otherwise.
+// Completion follows the same rule the command itself uses, so the suggestions
+// match what the argument will actually mean.
+func completeWorktreeAddArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	switch len(args) {
+	case 0:
+		if repo, err := repocontext.ResolveCurrent(cfg); err == nil {
+			return completeBranchNames(repo.Path, toComplete)
+		}
+		return completeRepoNames(toComplete)
+	case 1:
+		// The first argument named a repository, so the second is its branch.
+		repos := findRepositories(cfg, args[0])
+		if len(repos) != 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return completeBranchNames(repos[0].Path, toComplete)
+	default:
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// completeWorktreeRepoOrDot completes the optional repository argument of list
+// and align, offering "." only when the working directory actually resolves.
+func completeWorktreeRepoOrDot(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	names, directive := completeRepoNames(toComplete)
+
+	cfg, err := config.Load()
+	if err != nil {
+		return names, directive
+	}
+	if _, err := repocontext.ResolveCurrent(cfg); err != nil {
+		return names, directive
+	}
+	if !strings.HasPrefix(currentRepoArg, toComplete) {
+		return names, directive
+	}
+	return append([]string{currentRepoArg}, names...), directive
+}
