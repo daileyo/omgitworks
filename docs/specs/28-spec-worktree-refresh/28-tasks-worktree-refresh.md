@@ -134,7 +134,7 @@ Create `cmd/omgitworks/worktree_refresh.go` and implement spec Unit 1: for each 
 - [x] 2.10 Capture the end-to-end CLI transcript against a scratch fixture workspace and save it under `docs/specs/28-spec-worktree-refresh/28-proofs/`.
 - [x] 2.11 *Added during implementation.* Make `syncRepoWorktrees` stop at the first failing step instead of ignoring repair and prune errors, since the spec requires a repository whose repair, prune, **or** list step fails to be reported and skipped. Confirm first that `git worktree repair` does not exit non-zero on the damage it fixes. Add `TestSyncRepoWorktrees_ReportsFailingStep`.
 
-### [ ] 3.0 Implement the four targeting forms and their unmatched-filter errors
+### [x] 3.0 Implement the four targeting forms and their unmatched-filter errors
 
 Deliver spec Unit 2's selection half by reconciling `worktreeScope` (spec 25) with the tag AND-semantics of spec 26, now shared in `worktree.go`: no argument means every tracked repository, a name pattern uses `filter.MatchesPattern`, `.` resolves through `repocontext.ResolveCurrent`, `-t <tag>` uses `filter.MatchesExact` and rejects repetition, and a name plus a tag applies AND.
 
@@ -151,15 +151,15 @@ Deliver spec Unit 2's selection half by reconciling `worktreeScope` (spec 25) wi
 
 #### 3.0 Tasks
 
-- [ ] 3.1 Resolve the tag with the shared `singleTagValue(flagWorktreeRefreshTags, "--tag")`, which returns `""` for none, the value for one, and an error naming the count for more than one. Do not add a refresh-specific copy.
-- [ ] 3.2 Register the `--tag`/`-t` flag as a `StringArrayVarP` bound to `flagWorktreeRefreshTags`, with the help text "Select repositories by tag (single value; not repeatable)" matching `worktree add`.
-- [ ] 3.3 Implement `selectWorktreeRefreshTargets(cfg *config.Config, arg, tag string) ([]*config.Repository, error)` handling all four combinations: build the base set from `worktreeScopeFor(cfg, arg)` so `""` means every repository, `.` the current one, and a name pattern every match, then narrow with `filterByTag` when a tag is present. Do **not** call `selectWorktreeTargets`: its empty case resolves the current repository and it rejects multi-match patterns, both wrong for refresh (see planning notes).
-- [ ] 3.4 Return an error naming both filters when the combined selection is empty, following the message shapes already used in `selectWorktreeTargets` (`"no repository found matching '%s' and tagged '%s'"`).
-- [ ] 3.5 Propagate the `repocontext.ResolveCurrent` error unchanged when `arg` is `.` and the working directory is not inside a tracked repository.
-- [ ] 3.6 Wire the command's `RunE` to load config, resolve the tag, call `selectWorktreeRefreshTargets`, and hand the result to `runWorktreeRefresh`.
-- [ ] 3.7 Set `worktreeRefreshCmd.ValidArgsFunction = completeWorktreeRepoOrDot` and register tag completion with `completeAllTags`, matching `worktree add`.
-- [ ] 3.8 Write `worktree_refresh_target_test.go` covering the six test proof artifacts above, reusing `setupTaggedFixture`, `standardFixture`, and `chdirForTest`.
-- [ ] 3.9 Capture the `-t <tag>` CLI transcript into `28-proofs/`.
+- [x] 3.1 Resolve the tag with the shared `singleTagValue(flagWorktreeRefreshTags, "--tag")`, which returns `""` for none, the value for one, and an error naming the count for more than one. Do not add a refresh-specific copy.
+- [x] 3.2 Register the `--tag`/`-t` flag as a `StringArrayVarP` bound to `flagWorktreeRefreshTags`, with the help text "Select repositories by tag (single value; not repeatable)" matching `worktree add`.
+- [x] 3.3 Implement `selectWorktreeRefreshTargets(cfg *config.Config, arg, tag string) ([]*config.Repository, error)` handling all four combinations: build the base set from `worktreeScopeFor(cfg, arg)` so `""` means every repository, `.` the current one, and a name pattern every match, then narrow with `filterByTag` when a tag is present. Do **not** call `selectWorktreeTargets`: its empty case resolves the current repository and it rejects multi-match patterns, both wrong for refresh (see planning notes).
+- [x] 3.4 Return an error naming both filters when the combined selection is empty, following the message shapes already used in `selectWorktreeTargets` (`"no repository found matching '%s' and tagged '%s'"`). *As built:* `.` combined with a tag that the current repository lacks gets its own message, `current repository '<name>' is not tagged '<tag>'`, because "matching '.'" would be meaningless. With no filters and no tracked repositories there is nothing to select, and the command exits 0 without error.
+- [x] 3.5 Propagate the `repocontext.ResolveCurrent` error unchanged when `arg` is `.` and the working directory is not inside a tracked repository.
+- [x] 3.6 Wire the command's `RunE` to load config, resolve the tag, call `selectWorktreeRefreshTargets`, and hand the result to `runWorktreeRefresh`.
+- [x] 3.7 Set `worktreeRefreshCmd.ValidArgsFunction = completeWorktreeRepoOrDot` and register tag completion with `completeAllTags`, matching `worktree add`.
+- [x] 3.8 Write `worktree_refresh_target_test.go` covering the six test proof artifacts above, reusing `setupTaggedFixture`, `standardFixture`, and `chdirForTest`. *As built:* also adds `TestWorktreeRefreshTargets_DotAndTagAreAnded` (the plan covered name + tag but not `.` + tag) and a `refresh` row in `TestWorktreeCompletionsRegistered`. The completion test also checks that `--tag` completes the tags in use.
+- [x] 3.9 Capture the `-t <tag>` CLI transcript into `28-proofs/`.
 
 ### [ ] 4.0 Report per-repository changes and a final summary
 
