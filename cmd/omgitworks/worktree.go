@@ -26,7 +26,7 @@ When called with a branch pattern, navigates to the matching worktree:
 Subcommands:
   gws worktree navigate <branch>        # Navigate to a worktree by branch name
   gws worktree list [repo]              # List all worktrees (optionally filtered by repo)
-  gws worktree add <repo> <branch>      # Create a new worktree in the projects root
+  gws worktree add [repo] <branch>      # Create a new worktree in the projects root
   gws worktree align [repo]             # Move unaligned worktrees into the projects root`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -77,7 +77,7 @@ tests and is the dependency for tasks 2.0-4.0 and for specs 26-28.
 - [x] 1.16 Write `TestResolve_WindowsDriveLetterCase`, guarded by `if runtime.GOOS != "windows" { t.Skip("windows-only path casing") }`: store the repository path with the drive letter lower-cased while git reports it upper-cased (or the reverse), and assert resolution still returns the repository. This pins the `samePath` rule from sub-task 1.6; CI's test job runs on ubuntu only, so the case is otherwise unexercised.
 - [x] 1.17 Run `gofmt -l`, `go vet ./internal/...`, and `golangci-lint run ./internal/...`; fix any finding before moving on.
 
-### [ ] 2.0 `omgw worktree add <branch>` Without a Repository Argument
+### [x] 2.0 `omgw worktree add <branch>` Without a Repository Argument
 
 Wire the resolver into `worktree add`, widening its arity so one positional means branch
 and two continue to mean repository then branch.
@@ -94,17 +94,17 @@ and two continue to mean repository then branch.
 
 #### 2.0 Tasks
 
-- [ ] 2.1 In `cmd/omgitworks/worktree_add.go`, split `runWorktreeAdd` by extracting everything from the duplicate-branch check onward into `func addWorktreeForRepo(cfg *config.Config, repo *config.Repository, branch string) error`, leaving the existing behavior byte-for-byte identical. Verify the five existing `TestRunWorktreeAdd_*` cases still pass before continuing.
-- [ ] 2.2 Reduce `runWorktreeAdd(repoName, branch string)` to config load, the existing name-pattern lookup with its "multiple repositories match" and "no repository found" errors, then a call to `addWorktreeForRepo`.
-- [ ] 2.3 Add `func runWorktreeAddCurrent(branch string) error`: load config, call `repocontext.ResolveCurrent`, return the resolver's error unwrapped on failure, and otherwise call `addWorktreeForRepo`.
-- [ ] 2.4 Change `Args: cobra.ExactArgs(2)` to `cobra.RangeArgs(1, 2)` and dispatch in `RunE`: one argument calls `runWorktreeAddCurrent(args[0])`, two call `runWorktreeAdd(args[0], args[1])`. The resolver must not be invoked in the two-argument path.
-- [ ] 2.5 Update the command's `Use` to `add [repo] <branch>` and extend `Long` with the omitted-repository form, a note that it works from inside a worktree of the repository, and a matching example. Keep the existing `gws` prefix used by the surrounding examples: rebranding help text is a separate change across all 18 command files, not part of this spec.
-- [ ] 2.6 Update the `Subcommands:` block in `worktreeCmd.Long` (`cmd/omgitworks/worktree.go:28-31`) so the `add` line reads `add [repo] <branch>`.
-- [ ] 2.7 Add `TestRunWorktreeAdd_ResolvesCurrentRepo` to `worktree_add_test.go`: chdir into the repository created by `setupWorktreeTestRepo`, call `runWorktreeAddCurrent("feat-x")`, and assert the worktree exists at the projects path and is recorded in the reloaded config.
-- [ ] 2.8 Add `TestRunWorktreeAdd_ResolvesFromInsideWorktree`: create a first worktree, chdir into it, add a second branch via `runWorktreeAddCurrent`, and assert the second worktree is created under the owning repository's projects directory.
-- [ ] 2.9 Add `TestRunWorktreeAdd_ExplicitRepoIgnoresCwd`: build a fixture with two tracked repositories, chdir into repository A, call `runWorktreeAdd("repo-b", "feat-x")`, and assert the worktree lands in repository B's projects directory and repository A's `Worktrees` is untouched.
-- [ ] 2.10 Add `TestRunWorktreeAddCurrent_NotTracked`: chdir to a bare `t.TempDir()`, call `runWorktreeAddCurrent`, and assert the error matches `repocontext.ErrNotTracked` and that no directory was created under the projects root.
-- [ ] 2.11 Add an arity test asserting `worktreeAddCmd.Args` rejects zero and three arguments and accepts one and two, calling the `Args` function directly rather than executing the command.
+- [x] 2.1 In `cmd/omgitworks/worktree_add.go`, split `runWorktreeAdd` by extracting everything from the duplicate-branch check onward into `func addWorktreeForRepo(cfg *config.Config, repo *config.Repository, branch string) error`, leaving the existing behavior byte-for-byte identical. Verify the five existing `TestRunWorktreeAdd_*` cases still pass before continuing.
+- [x] 2.2 Reduce `runWorktreeAdd(repoName, branch string)` to config load, the existing name-pattern lookup with its "multiple repositories match" and "no repository found" errors, then a call to `addWorktreeForRepo`.
+- [x] 2.3 Add `func runWorktreeAddCurrent(branch string) error`: load config, call `repocontext.ResolveCurrent`, return the resolver's error unwrapped on failure, and otherwise call `addWorktreeForRepo`.
+- [x] 2.4 Change `Args: cobra.ExactArgs(2)` to `cobra.RangeArgs(1, 2)` and dispatch in `RunE`: one argument calls `runWorktreeAddCurrent(args[0])`, two call `runWorktreeAdd(args[0], args[1])`. The resolver must not be invoked in the two-argument path.
+- [x] 2.5 Update the command's `Use` to `add [repo] <branch>` and extend `Long` with the omitted-repository form, a note that it works from inside a worktree of the repository, and a matching example. Keep the existing `gws` prefix used by the surrounding examples: rebranding help text is a separate change across all 18 command files, not part of this spec.
+- [x] 2.6 Update the `Subcommands:` block in `worktreeCmd.Long` (`cmd/omgitworks/worktree.go:28-31`) so the `add` line reads `add [repo] <branch>`.
+- [x] 2.7 Add `TestRunWorktreeAdd_ResolvesCurrentRepo` to `worktree_add_test.go`: chdir into the repository created by `setupWorktreeTestRepo`, call `runWorktreeAddCurrent("feat-x")`, and assert the worktree exists at the projects path and is recorded in the reloaded config.
+- [x] 2.8 Add `TestRunWorktreeAdd_ResolvesFromInsideWorktree`: create a first worktree, chdir into it, add a second branch via `runWorktreeAddCurrent`, and assert the second worktree is created under the owning repository's projects directory.
+- [x] 2.9 Add `TestRunWorktreeAdd_ExplicitRepoIgnoresCwd`: build a fixture with two tracked repositories, chdir into repository A, call `runWorktreeAdd("repo-b", "feat-x")`, and assert the worktree lands in repository B's projects directory and repository A's `Worktrees` is untouched.
+- [x] 2.10 Add `TestRunWorktreeAddCurrent_NotTracked`: chdir to a bare `t.TempDir()`, call `runWorktreeAddCurrent`, and assert the error matches `repocontext.ErrNotTracked` and that no directory was created under the projects root.
+- [x] 2.11 Add an arity test asserting `worktreeAddCmd.Args` rejects zero and three arguments and accepts one and two, calling the `Args` function directly rather than executing the command.
 
 ### [ ] 3.0 `.` Targeting for `omgw worktree list` and `omgw worktree align`
 
