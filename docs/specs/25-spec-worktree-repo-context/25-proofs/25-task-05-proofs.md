@@ -21,7 +21,9 @@ complete change.
 
 - `git diff --stat main...HEAD -- cmd/omgitworks/shellinit.go` is empty.
 - 7 shell template tests pass.
-- `make ci` exits 0: 397 test cases pass, 1 skips (the Windows-only case), 0 fail.
+- `make ci` exits 0: 397 top-level tests pass (1034 including sub-tests), 0 fail, and
+  10 skip — 1 the Windows-only drive-letter case, 9 pre-existing `pwsh not installed`
+  sub-cases in a file this branch never touched.
 
 ## Artifact: Documentation diff
 
@@ -127,8 +129,10 @@ match the version pinned in `.github/workflows/ci.yml`.
 make ci
 ~~~
 
-**Result summary:** Exit 0. 397 test cases pass across all 9 packages, 1 skips — the
-Windows-only drive-letter case — and none fail.
+**Result summary:** Exit 0 across all 9 packages. 397 top-level tests pass, 1034
+including sub-tests, and none fail. Of the 10 skips, 1 is this spec's Windows-only
+drive-letter case; the other 9 are pre-existing `pwsh not installed` sub-cases in
+`TestShellWrapperWorktreePassthrough`, whose file is unchanged on this branch.
 
 ~~~text
 ok  	github.com/daileyo/omgitworks/cmd/omgitworks	5.998s
