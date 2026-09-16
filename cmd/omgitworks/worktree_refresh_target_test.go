@@ -14,7 +14,10 @@ import (
 // resetRefreshFlags clears refresh's package-level flag state after a test.
 func resetRefreshFlags(t *testing.T) {
 	t.Helper()
-	t.Cleanup(func() { flagWorktreeRefreshTags = nil })
+	t.Cleanup(func() {
+		flagWorktreeRefreshTags = nil
+		flagWorktreeRefreshDryRun = false
+	})
 }
 
 // refreshTargetNames returns the sorted names selectWorktreeRefreshTargets picks.
