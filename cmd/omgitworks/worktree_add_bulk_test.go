@@ -24,7 +24,7 @@ func bulkAdd(t *testing.T, tag, branch string) (string, error) {
 
 	var runErr error
 	out := captureStdoutStr(func() {
-		runErr = runWorktreeAddBulk(cfg, repos, branch)
+		runErr = runWorktreeAddBulk(cfg, repos, branch, false)
 	})
 	return out, runErr
 }
@@ -261,5 +261,31 @@ func TestWorktreeAddBulk_SingleRepoKeepsExistingErrors(t *testing.T) {
 	err := runWorktreeAdd("svc-a", "feat-x")
 	if err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("got %v, want the existing 'already exists' error", err)
+	}
+}
+
+// A tag that happens to match exactly one repository is still a bulk run: an
+// existing worktree is a reported skip, not a hard error, and the exit status
+// stays zero. Regression guard for conflating "one repo selected" with "single
+// repository invocation".
+func TestWorktreeAddBulk_SingleMatchTagStillBulk(t *testing.T) {
+	setupTaggedFixture(t,
+		taggedRepo{Name: "only-one", Tags: []string{"solo"}},
+		taggedRepo{Name: "other", Tags: []string{"another"}},
+	)
+
+	if _, err := bulkAdd(t, "solo", "feat-x"); err != nil {
+		t.Fatalf("first run failed: %v", err)
+	}
+
+	out, err := bulkAdd(t, "solo", "feat-x")
+	if err != nil {
+		t.Errorf("second run returned %v; an existing worktree is a skip, not a failure", err)
+	}
+	if !strings.Contains(out, "Skipping [only-one]") {
+		t.Errorf("skip not announced:\n%s", out)
+	}
+	if !strings.Contains(out, "skipped 1") {
+		t.Errorf("summary not printed for a single-match tag run:\n%s", out)
 	}
 }

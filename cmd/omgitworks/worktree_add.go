@@ -121,7 +121,9 @@ func runWorktreeAddResolved(args []string) error {
 		return err
 	}
 
-	return runWorktreeAddBulk(cfg, repos, branch)
+	// A tag makes this a bulk run whatever it matched; without one, the
+	// selection is a single repository by construction.
+	return runWorktreeAddBulk(cfg, repos, branch, tag == "")
 }
 
 // selectWorktreeAddTargets resolves the precedence table to a repository set.
@@ -214,7 +216,7 @@ func runWorktreeAdd(repoName, branch string) error {
 		return err
 	}
 
-	return runWorktreeAddBulk(cfg, repos, branch)
+	return runWorktreeAddBulk(cfg, repos, branch, true)
 }
 
 // runWorktreeAddCurrent creates a worktree in the repository owning the current
@@ -231,7 +233,7 @@ func runWorktreeAddCurrent(branch string) error {
 		return err
 	}
 
-	return runWorktreeAddBulk(cfg, []*config.Repository{repo}, branch)
+	return runWorktreeAddBulk(cfg, []*config.Repository{repo}, branch, true)
 }
 
 // errPartialFailure signals that at least one repository in a bulk run failed.
@@ -300,10 +302,11 @@ func createWorktreeForRepo(repo *config.Repository, branch string) (string, erro
 // continuing past failures and reporting a summary. Successful creations are
 // retained when a later repository fails; there is no rollback.
 //
-// A single repository takes the same path, so there is one creation loop rather
-// than two that can drift apart.
-func runWorktreeAddBulk(cfg *config.Config, repos []*config.Repository, branch string) error {
-	single := len(repos) == 1
+// single selects the historical one-repository contract: an existing worktree is
+// an error and no summary is printed. It is a property of the invocation, not of
+// how many repositories were selected — a tag that happens to match one
+// repository is still a bulk run, where an existing worktree is a reported skip.
+func runWorktreeAddBulk(cfg *config.Config, repos []*config.Repository, branch string, single bool) error {
 
 	var (
 		created  int
