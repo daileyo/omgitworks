@@ -160,6 +160,7 @@ func TestWorktreeCompletionsRegistered(t *testing.T) {
 		{"add", worktreeAddCmd},
 		{"list", worktreeListCmd},
 		{"align", worktreeAlignCmd},
+		{"refresh", worktreeRefreshCmd},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

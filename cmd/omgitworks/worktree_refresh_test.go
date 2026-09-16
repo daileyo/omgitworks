@@ -18,7 +18,7 @@ import (
 func refreshAll(t *testing.T) (string, error) {
 	t.Helper()
 	var buf bytes.Buffer
-	err := runWorktreeRefreshCommand(&buf)
+	err := runWorktreeRefreshCommand(nil, &buf)
 	return buf.String(), err
 }
 
