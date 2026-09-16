@@ -117,6 +117,31 @@ func AddWorktree(repoPath, branch, destPath string) error {
 	return err
 }
 
+// RemoveWorktree removes the worktree at worktreePath from the repository at
+// repoPath, using git worktree remove.
+//
+// Without force, git refuses to remove a worktree containing uncommitted
+// changes, untracked files, or a submodule. That refusal is deliberate: the
+// cleanliness check is git's rather than ours, so its message is wrapped with
+// context rather than replaced, keeping the reason visible to the user.
+//
+// Locks are not checked here. Callers consult IsWorktreeLocked before calling,
+// so a dry-run preview can mark locked entries without spending a failed
+// subprocess on them.
+//
+// The branch the worktree had checked out is never touched.
+func RemoveWorktree(repoPath, worktreePath string, force bool) error {
+	args := []string{"worktree", "remove", worktreePath}
+	if force {
+		args = append(args, "--force")
+	}
+
+	if _, err := gitCommand(repoPath, args...); err != nil {
+		return fmt.Errorf("failed to remove worktree: %w", err)
+	}
+	return nil
+}
+
 // MoveWorktree moves a worktree from currentPath to newPath using git worktree move.
 // If the move fails, it attempts to detect and recover from partial moves.
 func MoveWorktree(repoPath, currentPath, newPath string) error {

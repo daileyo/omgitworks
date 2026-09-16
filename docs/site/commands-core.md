@@ -612,6 +612,58 @@ Total: 1 worktree to align
 - If a move fails partway, the worktree is rolled back to its original location
 - After alignment, worktree data is re-discovered and saved to config
 
+### Remove Worktrees
+
+```
+omgw worktree remove [repo] <branch> [-t <tag>] [--force] [--dry-run] [--yes]
+```
+
+Remove a worktree. `rm` is an alias.
+
+```bash
+# Remove one repo's worktree
+omgw worktree remove my-repo feat-auth
+
+# Repo taken from the current directory
+omgw worktree rm feat-auth
+
+# Remove across every repo tagged backend
+omgw worktree remove -t backend feat-auth
+```
+
+Targeting follows the same precedence table as [`worktree add`](#creating-across-many-repositories).
+
+**Safety model.** This is the most destructive worktree command, so it has several guards:
+
+- **Uncommitted or untracked changes block removal.** omgitworks does not implement its own cleanliness check — `git worktree remove` refuses, and that refusal is reported with its reason intact. Pass `--force` to override.
+- **Locked worktrees are always skipped**, and `--force` does *not* override a lock. `--force` covers dirty worktrees only, matching git's own division.
+- **Branches are never deleted.** Removing a checkout is not the same as discarding the work on it; the branch survives every removal path.
+- **Empty directories are tidied.** Once a repository's projects directory (or an intermediate directory from a slashed branch name) is empty, it is removed. Directories still holding anything are left alone.
+
+**Preview and confirmation.** A run targeting more than one worktree prints the full plan and asks before removing anything:
+
+```
+$ omgw worktree remove -t backend feat-auth --dry-run
+Dry run — no changes will be made:
+
+--force is not set: worktrees with uncommitted changes will fail.
+
+Would remove [svc-a] feat-auth
+  path: ~/.local/share/gws/projects/svc-a/feat-auth
+
+Would remove [svc-b] feat-auth
+  path: ~/.local/share/gws/projects/svc-b/feat-auth  (locked: in review — will be skipped)
+
+Total: 2 worktrees
+```
+
+- `--dry-run` previews and changes nothing. The preview is rendered from the same plan the real run uses, so what you see is what happens.
+- `--yes` / `-y` skips the confirmation prompt, for scripts.
+- A single-worktree removal is not prompted; git's own refusal already guards the destructive case.
+- If confirmation is required, `--yes` was not passed, and stdin is not a terminal, the command **exits non-zero** telling you to pass `--yes`, rather than prompting into a pipe or proceeding unconfirmed.
+
+**Partial failure.** Like tag-scoped creation, a bulk removal continues past errors, reports removed/skipped/failed counts, and exits non-zero if anything failed. A repository that simply has no worktree for the branch is a **skip**, not a failure. Removals completed before a later failure are not restored.
+
 ### Current-Repository Targeting
 
 `omgw worktree add` lets you omit the repo argument, and `omgw worktree list` and `omgw worktree align` accept `.`, when you want to act on the repository you are already standing in.

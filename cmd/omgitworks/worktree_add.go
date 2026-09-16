@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daileyo/omgitworks/internal/config"
-	"github.com/daileyo/omgitworks/internal/filter"
 	"github.com/daileyo/omgitworks/internal/git"
 	"github.com/daileyo/omgitworks/internal/repocontext"
 	"github.com/daileyo/omgitworks/internal/xdg"
@@ -76,14 +75,7 @@ var flagWorktreeAddTags []string
 
 // worktreeAddTag returns the single --tag value, rejecting repetition.
 func worktreeAddTag() (string, error) {
-	switch len(flagWorktreeAddTags) {
-	case 0:
-		return "", nil
-	case 1:
-		return flagWorktreeAddTags[0], nil
-	default:
-		return "", fmt.Errorf("--tag accepts a single value, but was given %d times", len(flagWorktreeAddTags))
-	}
+	return singleTagValue(flagWorktreeAddTags, "--tag")
 }
 
 // runWorktreeAddCommand implements the targeting precedence table: the branch is
@@ -116,7 +108,7 @@ func runWorktreeAddResolved(args []string) error {
 		return err
 	}
 
-	repos, err := selectWorktreeAddTargets(cfg, pattern, tag)
+	repos, err := selectWorktreeTargets(cfg, pattern, tag)
 	if err != nil {
 		return err
 	}
@@ -126,92 +118,13 @@ func runWorktreeAddResolved(args []string) error {
 	return runWorktreeAddBulk(cfg, repos, branch, tag == "")
 }
 
-// selectWorktreeAddTargets resolves the precedence table to a repository set.
-//
-// Detection is the lowest-precedence source: the resolver is consulted only when
-// neither a name pattern nor a tag narrows the selection.
-func selectWorktreeAddTargets(cfg *config.Config, pattern, tag string) ([]*config.Repository, error) {
-	switch {
-	case pattern != "" && tag != "":
-		// AND semantics, matching 'omgw tag add --repo X --path Y'. The
-		// ambiguity check deliberately does not apply here: narrowing a tagged
-		// group by name is a bulk operation over the intersection.
-		repos := filterByTag(selectByName(cfg, pattern), tag)
-		if len(repos) == 0 {
-			return nil, fmt.Errorf("no repository found matching '%s' and tagged '%s'", pattern, tag)
-		}
-		return repos, nil
-
-	case tag != "":
-		repos := filterByTag(allRepositories(cfg), tag)
-		if len(repos) == 0 {
-			return nil, fmt.Errorf("no repository found tagged '%s'", tag)
-		}
-		return repos, nil
-
-	case pattern != "":
-		repos := selectByName(cfg, pattern)
-		if len(repos) == 0 {
-			return nil, fmt.Errorf("no repository found matching '%s'", pattern)
-		}
-		// Without a tag to narrow it, an ambiguous pattern is still rejected.
-		if len(repos) > 1 {
-			return nil, fmt.Errorf("multiple repositories match '%s', narrow your query", pattern)
-		}
-		return repos, nil
-
-	default:
-		repo, err := repocontext.ResolveCurrent(cfg)
-		if err != nil {
-			return nil, err
-		}
-		return []*config.Repository{repo}, nil
-	}
-}
-
-// allRepositories returns pointers to every tracked repository.
-func allRepositories(cfg *config.Config) []*config.Repository {
-	repos := make([]*config.Repository, 0, len(cfg.Repositories))
-	for i := range cfg.Repositories {
-		repos = append(repos, &cfg.Repositories[i])
-	}
-	return repos
-}
-
-// selectByName returns repositories whose name matches the pattern, using the
-// partial case-insensitive matching the command has always used.
-func selectByName(cfg *config.Config, pattern string) []*config.Repository {
-	var repos []*config.Repository
-	for i := range cfg.Repositories {
-		if filter.MatchesPattern(cfg.Repositories[i].Name, pattern) {
-			repos = append(repos, &cfg.Repositories[i])
-		}
-	}
-	return repos
-}
-
-// filterByTag keeps repositories carrying the tag, matched with the exact,
-// case-insensitive, wildcard-aware rule used for tags everywhere else.
-func filterByTag(repos []*config.Repository, tag string) []*config.Repository {
-	var kept []*config.Repository
-	for _, repo := range repos {
-		for _, t := range repo.Tags {
-			if filter.MatchesExact(t, tag) {
-				kept = append(kept, repo)
-				break
-			}
-		}
-	}
-	return kept
-}
-
 func runWorktreeAdd(repoName, branch string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
 
-	repos, err := selectWorktreeAddTargets(cfg, repoName, "")
+	repos, err := selectWorktreeTargets(cfg, repoName, "")
 	if err != nil {
 		return err
 	}
