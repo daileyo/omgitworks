@@ -101,6 +101,16 @@ Both are previews of work not yet done, so both now use "Would remove".
 `TestWorktreeRemove_ConfirmListingMatchesDryRun` compares the two listings directly and
 would fail if they diverged again.
 
+## Defects found in validation and fixed
+
+Validation found two defects no implementation-phase test covered:
+
+- **Preview fidelity.** The dry run omitted repositories that would be skipped for lacking
+  the branch, and counted locked worktrees as removals while the real run counted them as
+  skips. The preview now shows `Would skip — ...` lines and a `Total: N to remove, M
+  skipped` footer matching the real summary. Guard: `TestWorktreeRemove_PreviewShowsSkips`.
+- **Cleanup containment** (task 2.0's code). See `27-validation-worktree-remove.md`.
+
 ## Reviewer Conclusion
 
 The destructive path cannot run unseen: preview and confirmation share one rendering, a

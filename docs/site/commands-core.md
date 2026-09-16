@@ -654,10 +654,12 @@ Would remove [svc-a] feat-auth
 Would remove [svc-b] feat-auth
   path: ~/.local/share/gws/projects/svc-b/feat-auth  (locked: in review — will be skipped)
 
-Total: 2 worktrees
+Would skip — no worktree for branch 'feat-auth' in repository 'svc-c'
+
+Total: 1 worktree to remove, 2 skipped
 ```
 
-- `--dry-run` previews and changes nothing. The preview is rendered from the same plan the real run uses, so what you see is what happens.
+- `--dry-run` previews and changes nothing. The preview is rendered from the same plan the real run uses, so what you see is what happens — including repositories that will be skipped because they are locked or have no worktree for the branch, counted the same way the real run's summary counts them.
 - `--yes` / `-y` skips the confirmation prompt, for scripts.
 - A single-worktree removal is not prompted; git's own refusal already guards the destructive case.
 - If confirmation is required, `--yes` was not passed, and stdin is not a terminal, the command **exits non-zero** telling you to pass `--yes`, rather than prompting into a pipe or proceeding unconfirmed.
