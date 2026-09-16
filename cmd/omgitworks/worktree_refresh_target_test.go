@@ -127,10 +127,11 @@ func TestWorktreeRefreshTargets_SingleMatchTagIsBulk(t *testing.T) {
 			t.Errorf("%s tag: expected the bulk partial-failure result, got %v", name, err)
 		}
 	}
-	if !strings.HasPrefix(single, "\n1 error:\n  web-ui: ") {
+	// Same shape either way: summary line, then the error list.
+	if !strings.Contains(single, "\nRefreshed 0 repositories, 0 changed, 1 failed\n\n1 error:\n  web-ui: ") {
 		t.Errorf("single-match output is not in the bulk failure format:\n%q", single)
 	}
-	if !strings.HasPrefix(multi, "\n1 error:\n  api-core: ") {
+	if !strings.Contains(multi, "\nRefreshed 1 repository, 0 changed, 1 failed\n\n1 error:\n  api-core: ") {
 		t.Errorf("multi-match output is not in the bulk failure format:\n%q", multi)
 	}
 }
