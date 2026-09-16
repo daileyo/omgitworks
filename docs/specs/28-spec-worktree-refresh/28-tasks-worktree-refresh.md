@@ -2,20 +2,24 @@
 
 > Source spec: `docs/specs/28-spec-worktree-refresh/28-spec-worktree-refresh.md`
 >
-> Depends on: **spec 25** (`worktree-repo-context`) for `repocontext.ResolveCurrent` and the `worktreeScope` model; **spec 26** (`worktree-add-by-tag`) for the `--tag` AND-semantics precedent. Both are merged into this branch's base (`feat/worktree-add-by-tag`, `f4b0601`).
+> Depends on: **spec 25** (`worktree-repo-context`) for `repocontext.ResolveCurrent` and the `worktreeScope` model; **spec 26** (`worktree-add-by-tag`) for the `--tag` AND-semantics precedent. This branch's base is `feat/worktree-remove` (`9bae1a6`), which carries specs 25, 26, and **27**.
+>
+> *Rebased during task 1.0:* planning assumed a base of `feat/worktree-add-by-tag` (`f4b0601`). Spec 27, developed in parallel on a sibling branch, added a fourth copy of the re-discovery sequence that this spec's consolidation could not see. The two branches merge with no conflict and no test failure, so nothing automated would have caught the duplicate. The branch was rebased onto spec 27 so task 1.0 could absorb that copy.
 
 ## Planning Notes (Codebase Assessment)
 
 These findings come from reading the code on this branch and refine what the spec assumed. They are recorded here so implementation does not re-derive them.
 
-- **The duplication is two-and-a-half copies, not three.** `refresh.go:108` (`discoverWorktrees`) and `worktree_align.go:232` both run the full repair → prune → list → rebuild sequence. `worktree_add.go:285` runs **only** list → rebuild, with no repair and no prune. A fourth site, `worktree_align.go:87`, runs repair + prune alone as a planning pass, with no rebuild.
-- **The copies diverge in three observable ways.** `refresh.go` skips entries whose path is gone via `os.Stat` and sets `Worktrees = nil` when none remain; `worktree_align.go:232` and `worktree_add.go:285` do neither and assign a possibly-empty non-nil slice. `worktree_add.go` also discards the `ListWorktrees` error silently.
-- **Consolidation is therefore a behavior change on the `add` path**, which gains repair, prune, path-existence skipping, nil-on-empty, and error propagation. The spec calls this out and requires test coverage rather than assuming it is harmless.
-- **Targeting needs two existing models reconciled.** `worktreeScope` / `worktreeScopeFor` handles `""`, `.`, and name patterns but carries no tag. `selectWorktreeAddTargets` handles tag and name AND-semantics but not `.`. Refresh is the first command needing all four forms at once.
+- **There are four copies, not three.** `refresh.go:108` (`discoverWorktrees`) and `worktree_align.go:232` both run the full repair → prune → list → rebuild sequence. `worktree_add.go` runs **only** list → rebuild, with no repair and no prune. Spec 27 added `refreshWorktreeData` in `worktree_remove.go:396`, also list → rebuild only. A further site, `worktree_align.go:87`, runs repair + prune alone as a planning pass, with no rebuild, and is not a copy of the sequence.
+- **The copies diverge in three observable ways.** `refresh.go` skips entries whose path is gone via `os.Stat` and sets `Worktrees = nil` when none remain; `worktree_align.go:232`, `worktree_add.go`, and `worktree_remove.go` do neither and assign a possibly-empty non-nil slice. `worktree_add.go` and `worktree_remove.go` also discard the `ListWorktrees` error silently.
+- **Consolidation is therefore a behavior change on the `add` and `remove` paths**, which gain repair, prune, path-existence skipping, nil-on-empty, and error propagation. The spec calls this out and requires test coverage rather than assuming it is harmless.
+- **Targeting needs two existing models reconciled.** `worktreeScope` / `worktreeScopeFor` handles `""`, `.`, and name patterns but carries no tag. Spec 27 moved spec 26's selection into `worktree.go` as `selectWorktreeTargets`, alongside `allRepositories`, `selectByName`, `filterByTag`, and a shared `singleTagValue(values, flagName)`.
+- **`selectWorktreeTargets` must not be reused as-is for refresh.** Its precedence table was built for add and remove, and it differs from refresh's contract in two ways. With no pattern and no tag it resolves the *current* repository, where refresh must target *every* repository. And it rejects a name pattern matching more than one repository, where refresh refreshes them all. Refresh reuses the building blocks (`allRepositories`, `selectByName`, `filterByTag`, `singleTagValue`, `worktreeScopeFor`) but not the table.
 - **There is no injectable git runner.** `internal/git.gitCommand` calls `exec` directly with no seam, so "repair did not run" cannot be asserted by mocking. Dry-run non-mutation is proved by observable side effects instead: a repairable worktree stays broken and a dead entry stays listed after a dry run.
 - **Single-save has a behavioral test precedent.** `TestWorktreeAddBulk_SingleSave` proves it by asserting every repository retains its entry, since a per-repository save would leave only the last intact. Task 2.0 mirrors that rather than counting writes.
 - **`worktree align` already ships `--dry-run`**, so this spec's flag matches its naming and output conventions.
-- **Flag variables live in package scope.** `flagDryRun` (align) and `flagWorktreeAddTags` (add) are package-level in `package main`, so refresh must use distinct names.
+- **Flag variables live in package scope.** `flagDryRun` (align), `flagWorktreeAddTags` (add), and `flagWorktreeRemoveTags` / `flagWorktreeRemoveDryRun` (remove) are package-level in `package main`, so refresh must use distinct names.
+- **Never derive single-repository mode from `len(repos) == 1`.** Specs 26 and 27 both found this bug during validation: a tag that matches exactly one repository is still a bulk run. If refresh needs the distinction at all, derive it from the invocation shape.
 - **`worktree.go` already anticipates this command** — `currentRepoArg`'s doc comment names "the future refresh" as a reason the argument position stays uniform.
 
 ## Relevant Files
@@ -31,8 +35,10 @@ These findings come from reading the code on this branch and refine what the spe
 | `cmd/omgitworks/worktree_refresh_dryrun_test.go` | New. Dry-run tests: config byte-identical, repair/prune not run, caveat line, output parity. |
 | `cmd/omgitworks/refresh.go` | Contains `discoverWorktrees` (line 108), the most complete existing copy; converted to call the shared helper. |
 | `cmd/omgitworks/worktree_align.go` | Contains the repair+prune planning pass (line 87) and the full rebuild copy (line 232); converted to the shared helper. Also the `--dry-run` convention to match. |
-| `cmd/omgitworks/worktree_add.go` | Contains the partial list-only copy (line 285); converted to the shared helper, gaining repair and prune. Source of `worktreeAddTag`, `selectWorktreeAddTargets`, `filterByTag`, `selectByName`, `allRepositories`. |
-| `cmd/omgitworks/worktree.go` | Registers subcommands; holds `worktreeScope`, `worktreeScopeFor`, `currentRepoArg`, `completeWorktreeRepoOrDot`, `completeAllTags`. Its `Long` subcommand list needs the new command. |
+| `cmd/omgitworks/worktree_add.go` | Contains a partial list-only copy; converted to the shared helper, gaining repair and prune. |
+| `cmd/omgitworks/worktree_remove.go` | Spec 27. Contains `refreshWorktreeData` (line 396), a partial list-only copy; converted to the shared helper. Also the `--dry-run` and bulk-summary conventions of the newest worktree command. |
+| `cmd/omgitworks/worktree_remove_test.go` | Spec 27's remove tests; gains the test pinning remove's behavior change. |
+| `cmd/omgitworks/worktree.go` | Registers subcommands; holds `worktreeScope`, `worktreeScopeFor`, `currentRepoArg`, `completeWorktreeRepoOrDot`, `completeAllTags`, and, since spec 27, `selectWorktreeTargets`, `allRepositories`, `selectByName`, `filterByTag`, `singleTagValue`. Its `Long` subcommand list needs the new command. |
 | `internal/git/worktree.go` | Provides `RepairWorktrees`, `PruneWorktrees`, `ListWorktrees`, `IsAligned`, `ResolvePath`. Consumed unchanged. |
 | `internal/config/config.go` | Defines `Worktree{Path,Branch,Aligned}` and `Repository.Worktrees`, plus `Load`/`Save`. |
 | `internal/filter/filter.go` | Provides `MatchesPattern` (name) and `MatchesExact` (tag). |
@@ -49,29 +55,31 @@ These findings come from reading the code on this branch and refine what the spe
 
 ## Tasks
 
-### [ ] 1.0 Extract the shared worktree discovery helper and adopt it at every existing call site
+### [x] 1.0 Extract the shared worktree discovery helper and adopt it at every existing call site
 
-Consolidate the divergent repair → prune → list → rebuild copies into one helper, and convert `refresh.go`, `worktree_align.go`, and `worktree_add.go` to it. This lands before the new command so that `worktree refresh` consumes the helper rather than adding another copy. Success metric 5 depends on this task alone. The split into two functions is deliberate: dry run (task 5.0) needs the non-mutating half on its own.
+Consolidate the divergent repair → prune → list → rebuild copies into one helper, and convert `refresh.go`, `worktree_align.go`, `worktree_add.go`, and `worktree_remove.go` to it. This lands before the new command so that `worktree refresh` consumes the helper rather than adding another copy. Success metric 5 depends on this task alone. The split into two functions is deliberate: dry run (task 5.0) needs the non-mutating half on its own.
 
 #### 1.0 Proof Artifact(s)
 
-- CLI: `grep -rn 'RepairWorktrees\|PruneWorktrees' cmd --include='*.go' | grep -v _test.go` returns only lines inside `worktree_discover.go`, demonstrating the sequence exists in one place, down from the sites recorded in the planning notes
+- CLI: `grep -rn 'ListWorktrees(' cmd internal --include='*.go' | grep -v _test.go` returns one caller, inside `worktree_discover.go`, demonstrating the full repair → prune → list → rebuild sequence exists in one place, down from four. *Amended during implementation:* the plan originally grepped for `RepairWorktrees`/`PruneWorktrees` and expected them only in `worktree_discover.go`, but task 1.5 kept align's standalone repair + prune planning pass, which is not the full sequence, so that grep could never pass
 - Test: `cmd/omgitworks/worktree_discover_test.go` passes, covering path-existence skipping, nil-on-empty, and `ListWorktrees` error propagation, demonstrating the helper preserves `refresh.go`'s stricter semantics
 - Test: `TestWorktreeAdd_RepairsBeforeRebuild` in `worktree_add_test.go` passes, demonstrating the intended `add`-path behavior change is deliberate and covered
-- Test: existing `worktree_align_test.go`, `worktree_add_test.go`, and `worktree_add_bulk_test.go` pass without modification to their assertions, demonstrating no regression in the converted call sites
+- Test: `TestRunWorktreeRemove_RefreshUsesSharedRules` in `worktree_remove_test.go` passes, demonstrating the equivalent `remove`-path behavior change is covered
+- Test: existing `worktree_align_test.go`, `worktree_add_test.go`, `worktree_add_bulk_test.go`, `worktree_remove_test.go`, and `worktree_remove_bulk_test.go` pass without modification to their assertions, demonstrating no regression in the converted call sites
 - CLI: `make ci` exits zero, demonstrating vet, lint, and race-detector tests all pass after the refactor
 
 #### 1.0 Tasks
 
-- [ ] 1.1 Create `cmd/omgitworks/worktree_discover.go` with `buildWorktreeEntries(repoPath, repoName string) ([]config.Worktree, error)`: call `git.ListWorktrees`, return the error unwrapped on failure, skip any entry whose `Path` fails `os.Stat`, set `Aligned` via `git.IsAligned(e.Path, repoName)`, and return a nil slice when no entries survive.
-- [ ] 1.2 In the same file add `syncRepoWorktrees(repo *config.Repository) error`: run `git.RepairWorktrees` then `git.PruneWorktrees` (ignoring their errors as all current call sites do), then call `buildWorktreeEntries` and assign the result to `repo.Worktrees`, returning any error. Document in a comment that repair must precede prune because prune discards recoverable entries.
-- [ ] 1.3 Rewrite `discoverWorktrees` in `refresh.go` to loop over repos calling `syncRepoWorktrees`, skipping repos that error, and preserving its existing `int` return of repos that ended with worktrees.
-- [ ] 1.4 Replace the rebuild loop at `worktree_align.go:232` with a `syncRepoWorktrees` call per affected repo, keeping the existing `continue`-on-error behavior.
-- [ ] 1.5 Remove the now-redundant standalone repair+prune planning pass at `worktree_align.go:87`, or leave it with a comment explaining why the planning pass still needs it before `repo.Worktrees` is read. Pick one and record the reason in the commit message.
-- [ ] 1.6 Replace the list-only rebuild at `worktree_add.go:285` with `syncRepoWorktrees`. Decide how to surface the error that was previously discarded — propagate it, since the enclosing function already returns `(string, error)` — and note the `add` path now also repairs, prunes, skips missing paths, and nils on empty.
-- [ ] 1.7 Write `worktree_discover_test.go` with three cases: an entry whose directory was deleted is excluded; a repo whose entries are all missing yields a nil `Worktrees`; a `ListWorktrees` failure (use `breakRepo`) is returned rather than swallowed.
-- [ ] 1.8 Add `TestWorktreeAdd_RepairsBeforeRebuild` to `worktree_add_test.go`: create a repo with a worktree whose git pointer is broken but whose directory exists, run `worktree add`, and assert the entry survives — proving repair now runs on this path.
-- [ ] 1.9 Run `make ci` and confirm the pre-existing align and add tests pass with their assertions unchanged.
+- [x] 1.1 Create `cmd/omgitworks/worktree_discover.go` with `buildWorktreeEntries(repoPath, repoName string) ([]config.Worktree, error)`: call `git.ListWorktrees`, return the error unwrapped on failure, skip any entry whose `Path` fails `os.Stat`, set `Aligned` via `git.IsAligned(e.Path, repoName)`, and return a nil slice when no entries survive.
+- [x] 1.2 In the same file add `syncRepoWorktrees(repo *config.Repository) error`: run `git.RepairWorktrees` then `git.PruneWorktrees` (ignoring their errors as all current call sites do), then call `buildWorktreeEntries` and assign the result to `repo.Worktrees`, returning any error. Document in a comment that repair must precede prune because prune discards recoverable entries.
+- [x] 1.3 Rewrite `discoverWorktrees` in `refresh.go` to loop over repos calling `syncRepoWorktrees`, skipping repos that error, and preserving its existing `int` return of repos that ended with worktrees.
+- [x] 1.4 Replace the rebuild loop at `worktree_align.go:232` with a `syncRepoWorktrees` call per affected repo, keeping the existing `continue`-on-error behavior.
+- [x] 1.5 Remove the now-redundant standalone repair+prune planning pass at `worktree_align.go:87`, or leave it with a comment explaining why the planning pass still needs it before `repo.Worktrees` is read. Pick one and record the reason in the commit message. *Decision:* kept, with a comment — the planned moves fail on a worktree whose `.git` link is broken, so the pass is not redundant (audit flag 2).
+- [x] 1.6 Replace the list-only rebuild in `worktree_add.go` with `syncRepoWorktrees`. Decide how to surface the error that was previously discarded — propagate it, since the enclosing function already returns `(string, error)` — and note the `add` path now also repairs, prunes, skips missing paths, and nils on empty.
+- [x] 1.7 Write `worktree_discover_test.go` with three cases: an entry whose directory was deleted is excluded; a repo whose entries are all missing yields a nil `Worktrees`; a `ListWorktrees` failure (use `breakRepo`) is returned rather than swallowed.
+- [x] 1.8 Add `TestWorktreeAdd_RepairsBeforeRebuild` to `worktree_add_test.go`: create a repo with a worktree whose git pointer is broken but whose directory exists, run `worktree add`, and assert the entry survives — proving repair now runs on this path.
+- [x] 1.9 Run `make ci` and confirm the pre-existing align and add tests pass with their assertions unchanged.
+- [x] 1.10 *Added after rebasing onto spec 27.* Replace the body of `refreshWorktreeData` in `worktree_remove.go` with `syncRepoWorktrees` per repository, dropping its unused `cfg` parameter. Add `TestRunWorktreeRemove_RefreshUsesSharedRules`, which must fail against the previous `worktree_remove.go`, and re-run spec 27's `TestRunWorktreeRemove_*`, `TestWorktreeRemoveBulk_*`, and `TestWorktreeRemove_*` suites.
 
 ### [ ] 2.0 Add `omgw worktree refresh` with scoped metadata re-sync
 
@@ -104,11 +112,12 @@ Create `cmd/omgitworks/worktree_refresh.go` and implement spec Unit 1: for each 
 
 ### [ ] 3.0 Implement the four targeting forms and their unmatched-filter errors
 
-Deliver spec Unit 2's selection half by reconciling `worktreeScope` (spec 25) with the tag AND-semantics of `selectWorktreeAddTargets` (spec 26): no argument means every tracked repository, a name pattern uses `filter.MatchesPattern`, `.` resolves through `repocontext.ResolveCurrent`, `-t <tag>` uses `filter.MatchesExact` and rejects repetition, and a name plus a tag applies AND.
+Deliver spec Unit 2's selection half by reconciling `worktreeScope` (spec 25) with the tag AND-semantics of spec 26, now shared in `worktree.go`: no argument means every tracked repository, a name pattern uses `filter.MatchesPattern`, `.` resolves through `repocontext.ResolveCurrent`, `-t <tag>` uses `filter.MatchesExact` and rejects repetition, and a name plus a tag applies AND.
 
 #### 3.0 Proof Artifact(s)
 
-- Test: `TestWorktreeRefreshTargets_EachForm` passes — no-argument, name-pattern, `.`, and `-t` each select exactly the expected repository set from a fixture config, demonstrating the targeting contract
+- Test: `TestWorktreeRefreshTargets_EachForm` passes — no-argument, name-pattern, `.`, and `-t` each select exactly the expected repository set from a fixture config, with the no-argument case run from *inside* a tracked repository to prove it still selects every repository, and a name pattern matching several repositories selecting all of them, demonstrating the targeting contract and guarding against reuse of add/remove's precedence table
+- Test: `TestWorktreeRefreshTargets_SingleMatchTagIsBulk` passes — a tag matching exactly one repository takes the same code path and output as a multi-repository run, demonstrating the single-repository-mode lesson from specs 26 and 27
 - Test: `TestWorktreeRefreshTargets_NameAndTagAreAnded` passes — a repository matching the name but not the tag is excluded, demonstrating AND rather than OR and consistency with spec 26
 - Test: `TestWorktreeRefreshTargets_RepeatedTagRejected` passes — `-t a -t b` returns the single-value error, demonstrating the non-repeatable tag decision from round 1 question 2a
 - Test: `TestWorktreeRefreshTargets_UnmatchedFilters` passes — an unmatched name, an unmatched tag, and an unmatched combination each return an error whose message contains the filter values supplied, demonstrating the error contract
@@ -118,10 +127,10 @@ Deliver spec Unit 2's selection half by reconciling `worktreeScope` (spec 25) wi
 
 #### 3.0 Tasks
 
-- [ ] 3.1 Add `worktreeRefreshTag() (string, error)` mirroring `worktreeAddTag()`: return `""` for none, the value for one, and an error naming the count for more than one.
+- [ ] 3.1 Resolve the tag with the shared `singleTagValue(flagWorktreeRefreshTags, "--tag")`, which returns `""` for none, the value for one, and an error naming the count for more than one. Do not add a refresh-specific copy.
 - [ ] 3.2 Register the `--tag`/`-t` flag as a `StringArrayVarP` bound to `flagWorktreeRefreshTags`, with the help text "Select repositories by tag (single value; not repeatable)" matching `worktree add`.
-- [ ] 3.3 Implement `selectWorktreeRefreshTargets(cfg *config.Config, arg, tag string) ([]*config.Repository, error)` handling all four combinations: build the base set from `worktreeScopeFor(cfg, arg)` so `""`, `.`, and a name pattern all work, then narrow with `filterByTag` when a tag is present.
-- [ ] 3.4 Return an error naming both filters when the combined selection is empty, following the message shapes already used in `selectWorktreeAddTargets` (`"no repository found matching '%s' and tagged '%s'"`).
+- [ ] 3.3 Implement `selectWorktreeRefreshTargets(cfg *config.Config, arg, tag string) ([]*config.Repository, error)` handling all four combinations: build the base set from `worktreeScopeFor(cfg, arg)` so `""` means every repository, `.` the current one, and a name pattern every match, then narrow with `filterByTag` when a tag is present. Do **not** call `selectWorktreeTargets`: its empty case resolves the current repository and it rejects multi-match patterns, both wrong for refresh (see planning notes).
+- [ ] 3.4 Return an error naming both filters when the combined selection is empty, following the message shapes already used in `selectWorktreeTargets` (`"no repository found matching '%s' and tagged '%s'"`).
 - [ ] 3.5 Propagate the `repocontext.ResolveCurrent` error unchanged when `arg` is `.` and the working directory is not inside a tracked repository.
 - [ ] 3.6 Wire the command's `RunE` to load config, resolve the tag, call `selectWorktreeRefreshTargets`, and hand the result to `runWorktreeRefresh`.
 - [ ] 3.7 Set `worktreeRefreshCmd.ValidArgsFunction = completeWorktreeRepoOrDot` and register tag completion with `completeAllTags`, matching `worktree add`.

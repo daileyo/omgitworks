@@ -365,3 +365,50 @@ func TestRunWorktreeRemove_CleanupRespectsSiblingRepo(t *testing.T) {
 		t.Errorf("cleanup deleted another repository's projects directory %s", siblingDir)
 	}
 }
+
+// TestRunWorktreeRemove_RefreshUsesSharedRules pins the behavior remove picked
+// up when its re-discovery moved onto the shared helper. It used to list and
+// store worktrees without repairing or pruning, so a sibling worktree whose
+// directory had been deleted stayed recorded after an unrelated removal.
+//
+// As in the add-path test, surviving entries alone cannot tell the old and new
+// behavior apart, so the test asserts what only repair and prune produce.
+func TestRunWorktreeRemove_RefreshUsesSharedRules(t *testing.T) {
+	resetRemoveFlags(t)
+	paths := setupTaggedFixture(t, taggedRepo{Name: "svc-a", Tags: []string{"backend"}})
+	repoDir := paths["svc-a"]
+	addWorktreeTo(t, "svc-a", "feat-x")
+
+	outside := t.TempDir()
+	mislinked := filepath.Join(outside, "mislinked")
+	gone := filepath.Join(outside, "gone")
+	gitWorktreeAdd(t, repoDir, "mislinked", mislinked)
+	gitWorktreeAdd(t, repoDir, "gone", gone)
+	breakWorktreeLink(t, mislinked)
+	if err := os.RemoveAll(gone); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := removeOne(t, "svc-a", "feat-x", removeOptions{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(mislinked, ".git")); err != nil {
+		t.Errorf("repair should have restored the mislinked worktree's .git file: %v", err)
+	}
+	if containsPath(gitWorktreePaths(t, repoDir), gone) {
+		t.Error("prune should have removed git's record of the deleted worktree")
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to reload config: %v", err)
+	}
+	stored := map[string]bool{}
+	for _, wt := range cfg.Repositories[0].Worktrees {
+		stored[wt.Branch] = true
+	}
+	if !stored["mislinked"] || stored["gone"] || stored["feat-x"] {
+		t.Errorf("expected only mislinked stored, got %v", stored)
+	}
+}

@@ -83,7 +83,10 @@ func runWorktreeAlign(scope worktreeScope, dryRun bool) error {
 			continue
 		}
 
-		// Repair broken links first, then prune truly dead entries
+		// Repair broken links first, then prune truly dead entries. This is
+		// not a duplicate of the rebuild below: planning reads the stored
+		// worktrees, and the moves issued from this plan fail on a worktree
+		// whose .git link is broken, so the links are fixed before any move.
 		_ = git.RepairWorktrees(repo.Path)
 		_ = git.PruneWorktrees(repo.Path)
 
@@ -228,22 +231,9 @@ func runWorktreeAlign(scope worktreeScope, dryRun bool) error {
 		if !affectedRepos[repo.Path] {
 			continue
 		}
-		// Repair broken links, then prune truly dead entries
-		_ = git.RepairWorktrees(repo.Path)
-		_ = git.PruneWorktrees(repo.Path)
-		entries, err := git.ListWorktrees(repo.Path)
-		if err != nil {
+		if err := syncRepoWorktrees(repo); err != nil {
 			continue
 		}
-		wts := make([]config.Worktree, len(entries))
-		for j, e := range entries {
-			wts[j] = config.Worktree{
-				Path:    e.Path,
-				Branch:  e.Branch,
-				Aligned: git.IsAligned(e.Path, repo.Name),
-			}
-		}
-		repo.Worktrees = wts
 	}
 
 	if err := config.Save(cfg); err != nil {
