@@ -22,6 +22,29 @@ These findings come from reading the code on this branch and refine what the spe
 - **Never derive single-repository mode from `len(repos) == 1`.** Specs 26 and 27 both found this bug during validation: a tag that matches exactly one repository is still a bulk run. If refresh needs the distinction at all, derive it from the invocation shape.
 - **`worktree.go` already anticipates this command** — `currentRepoArg`'s doc comment names "the future refresh" as a reason the argument position stays uniform.
 
+## Validation Notes
+
+Items the validation phase must cover explicitly, beyond the spec's own requirements.
+
+- **`worktree remove` behavior changed in this spec and was never validated under spec 27.**
+  Spec 27 validated its original list → rebuild re-sync. Task 1.10 moved that re-sync onto
+  the shared helper, so after a removal `worktree remove` now also:
+  1. repairs, then prunes, the repository's other worktrees;
+  2. drops stored entries whose directory no longer exists on disk;
+  3. stores nil rather than an empty slice when no worktrees remain, omitting `worktrees`
+     from `config.json`;
+  4. leaves stored data untouched when the repository cannot be listed.
+
+  Validate each as a changed behavior of `worktree remove`, with evidence. Points 1 and 2
+  are covered by `TestRunWorktreeRemove_RefreshUsesSharedRules`. Points 3 and 4 are covered
+  only at the helper level (`TestBuildWorktreeEntries_NilWhenNoneSurvive`,
+  `TestSyncRepoWorktrees_PropagatesListError`), so validation must decide whether that is
+  enough. Spec 27's validation report needs no change: its only reference, row U1-11
+  ("`refreshWorktreeData` + one `config.Save`"), still holds.
+- **`worktree add` behavior changed in the same way** (task 1.6), and so did
+  **`worktree align`** (planning audit flag 1, which has no align-specific test). Validate
+  both on the same basis.
+
 ## Relevant Files
 
 | File | Why It Is Relevant |
