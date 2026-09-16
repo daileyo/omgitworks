@@ -106,6 +106,18 @@ outcome, and is what spec 25's validation flagged as noise.
 Confirmed live: both `--tag` repetition and an unmatched tag print one clean line and
 exit 1, with no usage dump.
 
+## Defect found in validation and fixed
+
+Validation caught a case no implementation-phase test covered: `runWorktreeAddBulk`
+derived its mode as `single := len(repos) == 1`, so a **tag matching exactly one
+repository** took the single-repository path. An existing worktree then became a hard
+error with exit 1 instead of a reported skip with exit 0, violating FR U1-7 and U3-5.
+
+`single` is now passed by the caller from the invocation shape (`tag == ""`), so a tag is
+always a bulk run whatever it matched. Regression test:
+`TestWorktreeAddBulk_SingleMatchTagStillBulk`. Full detail in
+`26-validation-worktree-add-by-tag.md`.
+
 ## Reviewer Conclusion
 
 Partial failure is reported completely and exits correctly, successful work is never
