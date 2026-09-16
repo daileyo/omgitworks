@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.1.0](https://github.com/daileyo/omgitworks/compare/v3.0.4...v3.1.0) (2026-09-16)
+
+
+### Features
+
+* **worktree:** accept . as the current repo for list and align ([3311047](https://github.com/daileyo/omgitworks/commit/33110475acff764ea6917c65f0b0376f22074d91))
+* **worktree:** add current-repository resolver ([9187872](https://github.com/daileyo/omgitworks/commit/91878722ae00ad6f3e41506cbcfe42005b41f668))
+* **worktree:** complete arguments for add, list, and align ([df60992](https://github.com/daileyo/omgitworks/commit/df60992289391beb48c85707b2b61274116bfdc5))
+* **worktree:** resolve the repo for worktree add ([79b3d95](https://github.com/daileyo/omgitworks/commit/79b3d95ce716322a6dbc171c1641879d9cc9ae45))
+
 ## [3.0.4](https://github.com/daileyo/omgitworks/compare/v3.0.3...v3.0.4) (2026-09-15)
 
 
