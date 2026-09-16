@@ -85,8 +85,8 @@ func TestShellTemplatesContainWorktreeNavigation(t *testing.T) {
 			if !strings.Contains(tmpl.template, "worktree)") {
 				t.Errorf("%s template missing worktree case block", tmpl.name)
 			}
-			// worktree subcommands (list, align, add) are passed through
-			if !strings.Contains(tmpl.template, "list|align|add") {
+			// worktree subcommands (list, align, add, remove, rm, refresh) are passed through
+			if !strings.Contains(tmpl.template, "list|align|add|remove|rm|refresh") {
 				t.Errorf("%s template missing worktree subcommand passthrough", tmpl.name)
 			}
 		})
@@ -110,8 +110,10 @@ func TestShellTemplatesContainWorktreeNavigation(t *testing.T) {
 		if !strings.Contains(powershellInitTemplate, `'^worktree$'`) {
 			t.Error("powershell template missing worktree case block")
 		}
-		// worktree subcommands (list, align, add) are passed through
-		if !strings.Contains(powershellInitTemplate, "'list', 'align', 'add'") {
+		// worktree subcommands (list, align, add, remove, rm, refresh) are passed through.
+		// PowerShell cannot be exec-tested where pwsh is absent, so this string
+		// check is the only guard on its list.
+		if !strings.Contains(powershellInitTemplate, "'list', 'align', 'add', 'remove', 'rm', 'refresh'") {
 			t.Error("powershell template missing worktree subcommand passthrough")
 		}
 	})

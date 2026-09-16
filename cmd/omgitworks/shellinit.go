@@ -48,7 +48,7 @@ function omgw() {
     list|init|add|refresh|print-workspace|tag|user|completion|shell-init|help|__*) {BIN} "$@" ;;
     worktree)
       case "$2" in
-        list|align|add|remove|rm|""|-*) {BIN} "$@" ;;
+        list|align|add|remove|rm|refresh|""|-*) {BIN} "$@" ;;
         *)
           # Help output goes to stdout; never capture it as a destination.
           for _arg in "${@:3}"; do
@@ -128,7 +128,7 @@ function omgw() {
     list|init|add|refresh|print-workspace|tag|user|completion|shell-init|help|__*) {BIN} "$@"; return ;;
     worktree)
       case "$2" in
-        list|align|add|remove|rm|""|-*) {BIN} "$@" ;;
+        list|align|add|remove|rm|refresh|""|-*) {BIN} "$@" ;;
         *)
           # Help output goes to stdout; never capture it as a destination.
           for arg in "${@:3}"; do
@@ -206,7 +206,7 @@ function omgw {
             }
             $second = $rest[0]
             switch ($second) {
-                { $_ -in 'list', 'align', 'add', 'remove', 'rm' -or $_ -like '-*' } {
+                { $_ -in 'list', 'align', 'add', 'remove', 'rm', 'refresh' -or $_ -like '-*' } {
                     & {BIN} @args
                     return
                 }

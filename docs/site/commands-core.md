@@ -382,6 +382,8 @@ Repositories with worktrees: 3
 
 The conditional lines (Removed, Found, Updated, Repositories with user configuration, Repositories with worktrees) only appear when their counts are greater than zero.
 
+To re-sync only worktree data, for one repository or a tagged group, without re-scanning the workspace, use [`omgw worktree refresh`](#refresh-worktrees).
+
 ---
 
 ## Navigate to Workspace Root
@@ -666,9 +668,84 @@ Total: 1 worktree to remove, 2 skipped
 
 **Partial failure.** Like tag-scoped creation, a bulk removal continues past errors, reports removed/skipped/failed counts, and exits non-zero if anything failed. A repository that simply has no worktree for the branch is a **skip**, not a failure. Removals completed before a later failure are not restored.
 
+### Refresh Worktrees
+
+```
+omgw worktree refresh [repo|.] [-t <tag>] [--dry-run]
+```
+
+Bring stored worktree data back in line with git, for the repositories you target and nothing else. Use it after creating, deleting, or moving a worktree outside omgitworks.
+
+```bash
+# Re-sync every tracked repository
+omgw worktree refresh
+
+# Only repositories matching a name pattern
+omgw worktree refresh my-repo
+
+# Only the repository you are standing in
+omgw worktree refresh .
+
+# Every repository tagged backend
+omgw worktree refresh -t backend
+
+# Preview without changing anything
+omgw worktree refresh --dry-run
+```
+
+For each repository it runs `git worktree repair`, then `git worktree prune`, then `git worktree list`, and rebuilds the stored entries, recomputing whether each worktree sits in the projects root. Configuration is saved once, at the end.
+
+**Worktree data only.** Unlike [`omgw refresh`](#refresh-workspace), it does not look for new repositories, re-detect git users, or clear the status cache.
+
+**Targeting.** This works like `list` and `align`, not like `add` and `remove`: omitting the argument means **every** repository, and a name pattern matching several repositories refreshes all of them. `.` scopes to the current repository. `-t <tag>` takes a single value, and combined with a name or `.` both must match.
+
+| Form | Refreshes |
+|------|-----------|
+| `refresh` | every tracked repository |
+| `refresh <repo>` | every repository matching the name pattern |
+| `refresh .` | the repository of the current directory |
+| `refresh -t <tag>` | every repository carrying the tag |
+| `refresh <repo> -t <tag>` | repositories matching the name **and** carrying the tag |
+
+A name or tag that matches nothing exits non-zero with an error naming the filter.
+
+**Example output:**
+
+```
+[svc-a]
+  added      feat-ext  /home/user/elsewhere/feat-ext  unaligned
+  removed    feat-gone  /home/user/.local/share/gws/projects/svc-a/feat-gone
+  realigned  feat-stay  /home/user/.local/share/gws/projects/svc-a/feat-stay  now unaligned
+[svc-d]
+  branch     feat-switched  /home/user/elsewhere/svc-d  was feat-switch
+
+Refreshed 3 repositories, 2 changed, 1 failed
+
+1 error:
+  svc-c: git worktree repair failed: chdir /home/user/projects/svc-c: no such file or directory
+```
+
+- Only repositories whose stored data changed are listed. A run where nothing changed prints just the summary line.
+- `added` and `removed` compare worktrees by path, so a worktree moved to a new path shows as one of each. `realigned` means the worktree stayed put but moved into or out of the projects root, for example after `XDG_DATA_HOME` changed. `branch` means a different branch is now checked out in it.
+- A repository that cannot be read is reported and skipped; the rest are still refreshed, and the command exits non-zero.
+
+**Repair before prune.** Prune discards any worktree git cannot find, and repair is what fixes a worktree whose `.git` link is broken but whose directory still exists. Running repair first means such a worktree is kept rather than thrown away.
+
+**Dry run.** `--dry-run` prints the same change lines and summary, framed as what would change, and changes nothing: no configuration is saved, and neither repair nor prune runs, because both change git state. The output says so:
+
+```
+Dry run — no changes will be made:
+git worktree repair and prune were not run, so a worktree that repair would fix is shown as it currently stands.
+
+[svc-a]
+  added      feat-ext  /home/user/elsewhere/feat-ext  unaligned
+
+Would refresh 1 repository, 1 would change
+```
+
 ### Current-Repository Targeting
 
-`omgw worktree add` lets you omit the repo argument, and `omgw worktree list` and `omgw worktree align` accept `.`, when you want to act on the repository you are already standing in.
+`omgw worktree add` lets you omit the repo argument, and `omgw worktree list`, `omgw worktree align`, and `omgw worktree refresh` accept `.`, when you want to act on the repository you are already standing in.
 
 In every case the repository is determined the same way:
 
@@ -685,11 +762,11 @@ Error: current directory is not inside a tracked repository
   Supply a repository argument, or run 'omgw add' to track this repository
 ```
 
-Worktree paths come from your config, which is populated by `omgw refresh`. A worktree created outside omgitworks and not yet refreshed will not resolve; run `omgw refresh` first.
+Worktree paths come from your config, which is populated by `omgw refresh` and `omgw worktree refresh`. A worktree created outside omgitworks and not yet refreshed will not resolve; run `omgw worktree refresh` for its repository first.
 
 Two things deliberately do **not** change:
 
-- Bare `omgw worktree list` and bare `omgw worktree align` still mean *all* repositories. Only `.` narrows them.
+- Bare `omgw worktree list`, `omgw worktree align`, and `omgw worktree refresh` still mean *all* repositories. Only `.` narrows them.
 - `omgw worktree <branch>` navigation stays global across the workspace; it does not prefer the current repository.
 
 ### Navigate to Worktrees

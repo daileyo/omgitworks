@@ -171,13 +171,14 @@ omgw my-repo -wt
 
 The shell function handles the `cd` automatically — `omgw worktree <branch>` and `omgw <repo> -wt <branch>` both change your working directory to the matched worktree path.
 
-The `worktree` subcommands that don't navigate (`list`, `align`, `add`, `remove`/`rm`) are passed through to the binary without `cd`, so their output and any confirmation prompt reach your terminal:
+The `worktree` subcommands that don't navigate (`list`, `align`, `add`, `remove`/`rm`, `refresh`) are passed through to the binary without `cd`, so their output and any confirmation prompt reach your terminal:
 
 ```bash
 omgw worktree list              # Lists worktrees (no cd)
 omgw worktree align --dry-run   # Previews alignment (no cd)
 omgw worktree add my-repo feat  # Creates worktree (no cd)
 omgw worktree remove my-repo feat --dry-run  # Previews removal (no cd)
+omgw worktree refresh           # Re-syncs worktree data (no cd)
 ```
 
 **Using the binary directly:**
@@ -221,7 +222,7 @@ function omgw() {
     list|init|add|refresh|print-workspace|tag|user|completion|shell-init|help|__*) omgitworks "$@" ;;
     worktree)
       case "$2" in
-        list|align|add|remove|rm|"") omgitworks "$@" ;;
+        list|align|add|remove|rm|refresh|"") omgitworks "$@" ;;
         *)
           _dest="$(omgitworks "$@" -q 2>/dev/tty </dev/tty)"
           [[ -n "$_dest" ]] && cd "$_dest"
@@ -285,7 +286,7 @@ function omgw {
             }
             $second = $rest[0]
             switch ($second) {
-                { $_ -in 'list', 'align', 'add', 'remove', 'rm' } {
+                { $_ -in 'list', 'align', 'add', 'remove', 'rm', 'refresh' } {
                     & omgitworks @args
                     return
                 }

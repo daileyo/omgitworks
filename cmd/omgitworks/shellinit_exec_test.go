@@ -38,7 +38,7 @@ for a in "$@"; do
   esac
 done
 case "$1 $2" in
-  "worktree list"|"worktree align"|"worktree add"|"worktree remove"|"worktree rm")
+  "worktree list"|"worktree align"|"worktree add"|"worktree remove"|"worktree rm"|"worktree refresh")
     echo "stub $2"
     exit 0 ;;
 esac
@@ -224,6 +224,9 @@ func TestShellWrapperWorktreePassthrough(t *testing.T) {
 		{"worktree remove my-repo feat-auth", "stub remove"},
 		{"worktree rm feat-auth", "stub rm"},
 		{"worktree remove -t backend feat-auth --dry-run", "stub remove"},
+		{"worktree refresh", "stub refresh"},
+		{"worktree refresh --dry-run", "stub refresh"},
+		{"worktree refresh my-repo -t backend", "stub refresh"},
 	}
 	for _, shell := range wrapperShells {
 		for _, tc := range cases {

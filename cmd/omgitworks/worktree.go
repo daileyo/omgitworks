@@ -32,7 +32,8 @@ Subcommands:
   gws worktree list [repo|.]            # List all worktrees (. means the current repo)
   gws worktree add [repo] <branch>      # Create a new worktree in the projects root
   gws worktree align [repo|.]           # Move unaligned worktrees into the projects root
-  gws worktree remove [repo] <branch>   # Remove a worktree (alias: rm)`,
+  gws worktree remove [repo] <branch>   # Remove a worktree (alias: rm)
+  gws worktree refresh [repo|.]         # Re-sync stored worktree data with git`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 {

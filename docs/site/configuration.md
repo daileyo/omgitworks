@@ -108,7 +108,7 @@ Profiles are managed via `omgw user add`, `omgw user remove`, and related comman
 
 ### Worktree Fields
 
-Each entry in the `worktrees` array represents a git worktree associated with a repository. Worktree data is populated during `omgw refresh` and updated by `omgw worktree add` and `omgw worktree align`.
+Each entry in the `worktrees` array represents a git worktree associated with a repository. Worktree data is populated during `omgw refresh` and updated by `omgw worktree add`, `omgw worktree align`, and `omgw worktree refresh`, which re-syncs it with git for chosen repositories.
 
 | Field | Type | Description |
 |-------|------|-------------|
