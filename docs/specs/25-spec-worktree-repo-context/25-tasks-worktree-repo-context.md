@@ -106,7 +106,7 @@ and two continue to mean repository then branch.
 - [x] 2.10 Add `TestRunWorktreeAddCurrent_NotTracked`: chdir to a bare `t.TempDir()`, call `runWorktreeAddCurrent`, and assert the error matches `repocontext.ErrNotTracked` and that no directory was created under the projects root.
 - [x] 2.11 Add an arity test asserting `worktreeAddCmd.Args` rejects zero and three arguments and accepts one and two, calling the `Args` function directly rather than executing the command.
 
-### [ ] 3.0 `.` Targeting for `omgw worktree list` and `omgw worktree align`
+### [x] 3.0 `.` Targeting for `omgw worktree list` and `omgw worktree align`
 
 Accept a literal `.` as the repository argument on the two subcommands whose argument is
 already optional, without changing what omission means on either.
@@ -124,21 +124,21 @@ already optional, without changing what omission means on either.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 In `cmd/omgitworks/worktree.go`, add `type worktreeScope struct { NamePattern string; RepoPath string; Label string }`, where an empty struct means all repositories, `NamePattern` is the legacy pattern path, and a non-empty `RepoPath` is an already-resolved exact repository path. Document that `RepoPath` and `NamePattern` are never both set.
-- [ ] 3.2 Add `func (s worktreeScope) matches(repo *config.Repository) bool`: return `true` when the scope is empty; when `RepoPath` is set compare `git.ResolvePath(repo.Path) == s.RepoPath` exactly; otherwise fall through to `filter.MatchesPattern(repo.Name, s.NamePattern)`.
-- [ ] 3.3 Add `func worktreeScopeFor(cfg *config.Config, arg string) (worktreeScope, error)`: return the empty scope for `""`; for the literal `"."` call `repocontext.ResolveCurrent` and build a `RepoPath` scope with `Label` set to the resolved repository name, returning the resolver error unchanged on failure; for anything else return a `NamePattern` scope with `Label` set to the argument. The `.` branch must return before any call to `filter.MatchesPattern`.
-- [ ] 3.4 Change `runWorktreeList(repoFilter string, stdout io.Writer)` to `runWorktreeList(scope worktreeScope, stdout io.Writer)`, replacing the `repoFilter != "" && !filter.MatchesPattern(...)` guard with `!scope.matches(&repo)` and the `No worktrees found for '%s'` message with `scope.Label`. The all-repositories message stays unchanged.
-- [ ] 3.5 Update `worktreeListCmd.RunE` to build the scope via `worktreeScopeFor` and return its error before doing any work. `Args` stays `cobra.MaximumNArgs(1)`.
-- [ ] 3.6 Change `runWorktreeAlign(repoFilter string, dryRun bool)` to `runWorktreeAlign(scope worktreeScope, dryRun bool)`, replacing the filter guard in the planning loop with `!scope.matches(repo)`. Leave the plan construction, dry-run output, move execution, and config re-save untouched.
-- [ ] 3.7 Update `worktreeAlignCmd.RunE` to build the scope via `worktreeScopeFor` and return its error before any repair or prune call runs.
-- [ ] 3.8 Migrate the five existing `runWorktreeList` call sites in `worktree_list_test.go` and the eight in `worktree_align_test.go` to the new signature (`worktreeScope{}` for `""`, `worktreeScope{NamePattern: "repo-a"}` for a name). Do not change any assertion; confirm the suite is green before adding new cases.
-- [ ] 3.9 Add `TestRunWorktreeList_NoArgListsAllRepos` and `TestRunWorktreeAlign_NoArgProcessesAllRepos` as explicit guards that omission still means all repositories, using a two-repository fixture where both have worktrees.
-- [ ] 3.10 Add `TestRunWorktreeList_DotScopesToCurrentRepo`: two-repository fixture, chdir into repository A, build the scope through `worktreeScopeFor(cfg, ".")`, and assert the output contains A's worktree branch and not B's.
-- [ ] 3.11 Add `TestRunWorktreeAlign_DotScopesToCurrentRepo`: give both repositories an unaligned worktree, chdir into A, run with `dryRun` true, and assert via `captureStdoutStr` that only A appears in the planned moves and B's worktree is still at its original path.
-- [ ] 3.12 Add `TestRunWorktreeAlign_DotHonorsDryRun`: assert the `.`-scoped dry run prints `Would move` and leaves the worktree in place, matching the existing `TestRunWorktreeAlign_DryRun` assertions.
-- [ ] 3.13 Add `TestRunWorktreeList_DotNotTreatedAsNamePattern`: track a repository literally named `my.repo` alongside the current one, chdir into the current one, and assert `worktreeScopeFor(cfg, ".")` returns a `RepoPath` scope with an empty `NamePattern` and that `my.repo` is absent from the output.
-- [ ] 3.14 Add `TestWorktreeDotResolutionFailure`: chdir to a bare `t.TempDir()` and assert `worktreeScopeFor(cfg, ".")` returns an error satisfying `errors.Is(err, repocontext.ErrNotTracked)`, then assert both `worktreeListCmd.RunE` and `worktreeAlignCmd.RunE` surface that same error for the `.` argument.
-- [ ] 3.15 Update the `list` and `align` `Long` help text and the `Subcommands:` block in `worktreeCmd.Long` to document the `.` form alongside the existing `[repo]` form.
+- [x] 3.1 In `cmd/omgitworks/worktree.go`, add `type worktreeScope struct { NamePattern string; RepoPath string; Label string }`, where an empty struct means all repositories, `NamePattern` is the legacy pattern path, and a non-empty `RepoPath` is an already-resolved exact repository path. Document that `RepoPath` and `NamePattern` are never both set.
+- [x] 3.2 Add `func (s worktreeScope) matches(repo *config.Repository) bool`: return `true` when the scope is empty; when `RepoPath` is set compare `git.ResolvePath(repo.Path) == s.RepoPath` exactly; otherwise fall through to `filter.MatchesPattern(repo.Name, s.NamePattern)`.
+- [x] 3.3 Add `func worktreeScopeFor(cfg *config.Config, arg string) (worktreeScope, error)`: return the empty scope for `""`; for the literal `"."` call `repocontext.ResolveCurrent` and build a `RepoPath` scope with `Label` set to the resolved repository name, returning the resolver error unchanged on failure; for anything else return a `NamePattern` scope with `Label` set to the argument. The `.` branch must return before any call to `filter.MatchesPattern`.
+- [x] 3.4 Change `runWorktreeList(repoFilter string, stdout io.Writer)` to `runWorktreeList(scope worktreeScope, stdout io.Writer)`, replacing the `repoFilter != "" && !filter.MatchesPattern(...)` guard with `!scope.matches(&repo)` and the `No worktrees found for '%s'` message with `scope.Label`. The all-repositories message stays unchanged.
+- [x] 3.5 Update `worktreeListCmd.RunE` to build the scope via `worktreeScopeFor` and return its error before doing any work. `Args` stays `cobra.MaximumNArgs(1)`.
+- [x] 3.6 Change `runWorktreeAlign(repoFilter string, dryRun bool)` to `runWorktreeAlign(scope worktreeScope, dryRun bool)`, replacing the filter guard in the planning loop with `!scope.matches(repo)`. Leave the plan construction, dry-run output, move execution, and config re-save untouched.
+- [x] 3.7 Update `worktreeAlignCmd.RunE` to build the scope via `worktreeScopeFor` and return its error before any repair or prune call runs.
+- [x] 3.8 Migrate the five existing `runWorktreeList` call sites in `worktree_list_test.go` and the eight in `worktree_align_test.go` to the new signature (`worktreeScope{}` for `""`, `worktreeScope{NamePattern: "repo-a"}` for a name). Do not change any assertion; confirm the suite is green before adding new cases.
+- [x] 3.9 Add `TestRunWorktreeList_NoArgListsAllRepos` and `TestRunWorktreeAlign_NoArgProcessesAllRepos` as explicit guards that omission still means all repositories, using a two-repository fixture where both have worktrees.
+- [x] 3.10 Add `TestRunWorktreeList_DotScopesToCurrentRepo`: two-repository fixture, chdir into repository A, build the scope through `worktreeScopeFor(cfg, ".")`, and assert the output contains A's worktree branch and not B's.
+- [x] 3.11 Add `TestRunWorktreeAlign_DotScopesToCurrentRepo`: give both repositories an unaligned worktree, chdir into A, run with `dryRun` true, and assert via `captureStdoutStr` that only A appears in the planned moves and B's worktree is still at its original path.
+- [x] 3.12 Add `TestRunWorktreeAlign_DotHonorsDryRun`: assert the `.`-scoped dry run prints `Would move` and leaves the worktree in place, matching the existing `TestRunWorktreeAlign_DryRun` assertions.
+- [x] 3.13 Add `TestRunWorktreeList_DotNotTreatedAsNamePattern`: track a repository literally named `my.repo` alongside the current one, chdir into the current one, and assert `worktreeScopeFor(cfg, ".")` returns a `RepoPath` scope with an empty `NamePattern` and that `my.repo` is absent from the output.
+- [x] 3.14 Add `TestWorktreeDotResolutionFailure`: chdir to a bare `t.TempDir()` and assert `worktreeScopeFor(cfg, ".")` returns an error satisfying `errors.Is(err, repocontext.ErrNotTracked)`, then assert both `worktreeListCmd.RunE` and `worktreeAlignCmd.RunE` surface that same error for the `.` argument.
+- [x] 3.15 Update the `list` and `align` `Long` help text and the `Subcommands:` block in `worktreeCmd.Long` to document the `.` form alongside the existing `[repo]` form.
 
 ### [ ] 4.0 Context-Aware Tab Completion for `add`, `list`, and `align`
 

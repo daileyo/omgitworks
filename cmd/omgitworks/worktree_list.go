@@ -9,11 +9,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daileyo/omgitworks/internal/config"
-	"github.com/daileyo/omgitworks/internal/filter"
 )
 
 var worktreeListCmd = &cobra.Command{
-	Use:   "list [repo]",
+	Use:   "list [repo|.]",
 	Short: "List worktrees across tracked repositories",
 	Long: `List all git worktrees across tracked repositories, optionally filtered to a
 single repository.
@@ -21,16 +20,28 @@ single repository.
 Each entry shows the repository name, branch, path, and whether the worktree
 is aligned (inside the projects root) or unaligned.
 
+Passing "." lists only the repository the current directory belongs to. Omitting
+the argument continues to list every tracked repository.
+
 Examples:
   gws worktree list                 # List all worktrees
-  gws worktree list my-repo         # List worktrees for my-repo only`,
+  gws worktree list my-repo         # List worktrees for my-repo only
+  gws worktree list .               # List worktrees for the current repo`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		repoFilter := ""
+		repoArg := ""
 		if len(args) == 1 {
-			repoFilter = args[0]
+			repoArg = args[0]
 		}
-		return runWorktreeList(repoFilter, os.Stdout)
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		scope, err := worktreeScopeFor(cfg, repoArg)
+		if err != nil {
+			return err
+		}
+		return runWorktreeList(scope, os.Stdout)
 	},
 }
 
@@ -46,7 +57,7 @@ type worktreeListEntry struct {
 	Aligned bool
 }
 
-func runWorktreeList(repoFilter string, stdout io.Writer) error {
+func runWorktreeList(scope worktreeScope, stdout io.Writer) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -54,7 +65,7 @@ func runWorktreeList(repoFilter string, stdout io.Writer) error {
 
 	var entries []worktreeListEntry
 	for _, repo := range cfg.Repositories {
-		if repoFilter != "" && !filter.MatchesPattern(repo.Name, repoFilter) {
+		if !scope.matches(&repo) {
 			continue
 		}
 		for _, wt := range repo.Worktrees {
@@ -68,8 +79,8 @@ func runWorktreeList(repoFilter string, stdout io.Writer) error {
 	}
 
 	if len(entries) == 0 {
-		if repoFilter != "" {
-			fmt.Fprintf(stdout, "No worktrees found for '%s'\n", repoFilter)
+		if scope.Label != "" {
+			fmt.Fprintf(stdout, "No worktrees found for '%s'\n", scope.Label)
 		} else {
 			fmt.Fprintln(stdout, "No worktrees found")
 		}
