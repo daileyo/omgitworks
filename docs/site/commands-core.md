@@ -490,7 +490,7 @@ Worktrees inside the projects root are marked `aligned`. Worktrees elsewhere —
 ### Add Worktree
 
 ```
-omgw worktree add [repo] <branch>
+omgw worktree add [repo] <branch> [-t <tag>]
 ```
 
 Create a new worktree. It is created at `<projects-root>/<repo>/<branch>`, defaulting to `~/.local/share/gws/projects/<repo>/<branch>`.
@@ -512,6 +512,59 @@ The directory is created automatically if it doesn't exist. If the branch alread
 When the repo argument is omitted, it is determined from your current directory — see [Current-Repository Targeting](#current-repository-targeting). Naming a repo explicitly always takes precedence, so `omgw worktree add other-repo feat-x` acts on `other-repo` no matter where you are standing.
 
 Tab completion follows the same rule: inside a tracked repository the first argument completes to that repository's **branch names**, and outside one it completes to **repository names**.
+
+#### Creating across many repositories
+
+`-t` / `--tag` creates the worktree in every repository carrying the tag:
+
+```bash
+# Create feat-auth in every repo tagged backend
+omgw worktree add -t backend feat-auth
+
+# Narrow a tagged group by name as well
+omgw worktree add api feat-auth -t backend
+```
+
+`--tag` takes a **single** value and is not repeatable. Supplying it twice is an error
+rather than a silent use of the last value. Tag matching is exact and case-insensitive,
+and supports `*` and `?` wildcards.
+
+**Targeting precedence.** Which repositories an invocation acts on depends on the number
+of positional arguments and whether `-t` is present:
+
+| Invocation | Repositories targeted | Branch |
+| --- | --- | --- |
+| `add <branch>` | the repository of the current directory | positional 1 |
+| `add -t <tag> <branch>` | all repositories carrying the tag | positional 1 |
+| `add <repo> <branch>` | repositories matching the name pattern | positional 2 |
+| `add <repo> <branch> -t <tag>` | repositories matching the name **and** the tag | positional 2 |
+
+A repository name pattern and a tag together require **both** conditions, matching the
+AND semantics of `omgw tag add --repo X --path Y`. The current directory is only
+consulted when neither a name nor a tag is given.
+
+Without `-t`, a name pattern matching more than one repository is still rejected with
+`multiple repositories match '<pattern>', narrow your query`. With `-t`, the tag narrows
+the group and the command runs across every repository in the intersection.
+
+**Partial failure.** A bulk run attempts every selected repository and does not stop at
+the first error:
+
+```
+Created worktree for branch 'feat-auth' at ~/.local/share/gws/projects/svc-a/feat-auth
+Skipping [svc-b] feat-auth — worktree for branch 'feat-auth' already exists at ...
+Created worktree for branch 'feat-auth' at ~/.local/share/gws/projects/svc-c/feat-auth
+
+Created 2 worktrees, skipped 1, 1 failed
+
+1 error:
+  svc-d: failed to create worktree: ...
+```
+
+- A repository that already has a worktree for the branch is **skipped**, not failed.
+- Worktrees created before a later failure are **retained**; there is no rollback.
+- The command exits **non-zero** if any repository failed, and zero when the run
+  contained only creations and skips.
 
 ### Align Worktrees
 
