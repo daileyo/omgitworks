@@ -170,6 +170,32 @@ locked (git worktree lock), WITH --force
 rm alias                   resolves to remove
 ~~~
 
+## 5) Post-Validation Defect
+
+Found **after** this report was issued, by the parallel spec 28 session, and fixed on this
+branch. The PASS above was given with this defect present; it is recorded here rather than
+folded silently into the earlier sections.
+
+| Severity | Issue | Fix |
+| --- | --- | --- |
+| **HIGH** (fixed) | **The `omgw` shell function treated `worktree remove` / `rm` as navigation.** `cmd/omgitworks/shellinit.go` routes `worktree` subcommands with hard-coded passthrough lists (`list\|align\|add` in the zsh and bash templates, `'list', 'align', 'add'` in PowerShell). Any other subcommand falls to the navigation branch, which captures stdout into `$(... -q)` and then `cd`s into it. Through `omgw` — though not when the binary is invoked directly — the removal plan, the `--dry-run` preview, the summary, and the error list were all captured and never shown, while the confirmation prompt still read from `/dev/tty`. **A user could be asked to confirm a destructive plan they could not see.** The inherited `-q` flag is valid on `remove`, so the removal really ran. | Added `remove` and `rm` to all three passthrough lists, and updated the examples in `docs/site/shell-integration.md` to match. |
+
+**Why validation missed it.** Nothing in spec 27 mentions the shell function, and
+validation checked the binary directly, where the command behaves correctly. Spec 25's
+validation recorded `shellinit.go` as needing no changes, which was true for spec 25 but
+became false as soon as a new non-navigating `worktree` subcommand existed. **Every new
+`worktree` subcommand must be added to these passthrough lists**, a requirement that no
+spec in the series stated.
+
+**Regression evidence.** Three passthrough cases were added to
+`TestShellWrapperWorktreePassthrough` — `worktree remove my-repo feat-auth`,
+`worktree rm feat-auth`, and `worktree remove -t backend feat-auth --dry-run` — and the stub
+binary's case line was extended to answer them. Against the unfixed templates, every zsh and
+bash case **failed** with empty stdout and no passthrough invocation. After the fix, all
+pass, worktree navigation still captures and `cd`s as before, and `make ci` passes with 450
+top-level tests. The PowerShell cases skip on this machine because `pwsh` is not installed,
+so the PowerShell template change is verified by inspection only.
+
 ---
 
 **Validation Completed:** 2026-09-16
