@@ -166,7 +166,7 @@ func init() {
 	// --- Lowercase flags: filter only (no column display) ---
 	listCmd.Flags().StringVarP(&flagType, "type", "y", "", "Filter by type")
 	listCmd.Flags().StringVarP(&flagVisibility, "visibility", "i", "", "Filter by visibility")
-	listCmd.Flags().StringVarP(&flagTag, "tag", "t", "", "Filter by tag (repeatable for AND logic)")
+	listCmd.Flags().StringVarP(&flagTag, "tag", "t", "", "Filter by tag (single value)")
 	listCmd.Flags().StringVarP(&flagPath, "path", "p", "", "Filter by path pattern")
 	listCmd.Flags().StringVarP(&flagStatus, "status", "s", "", "Show compact status in name column, or show and filter by status pattern")
 	listCmd.Flags().Lookup("status").NoOptDefVal = showColumnSentinel

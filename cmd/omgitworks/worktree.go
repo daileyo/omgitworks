@@ -191,3 +191,27 @@ func completeWorktreeRepoOrDot(_ *cobra.Command, args []string, toComplete strin
 	}
 	return append([]string{currentRepoArg}, names...), directive
 }
+
+// completeAllTags returns the deduplicated tags in use across every tracked
+// repository, filtered on the typed prefix. Used for --tag on worktree add,
+// where the tag is workspace-wide rather than scoped to one repository.
+func completeAllTags(toComplete string) ([]string, cobra.ShellCompDirective) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	seen := make(map[string]bool)
+	var tags []string
+	for _, repo := range cfg.Repositories {
+		for _, tag := range repo.Tags {
+			if seen[tag] {
+				continue
+			}
+			if strings.HasPrefix(strings.ToLower(tag), strings.ToLower(toComplete)) {
+				seen[tag] = true
+				tags = append(tags, tag)
+			}
+		}
+	}
+	return tags, cobra.ShellCompDirectiveNoFileComp
+}

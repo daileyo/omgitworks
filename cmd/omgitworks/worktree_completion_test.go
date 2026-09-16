@@ -179,3 +179,37 @@ func TestCompleteBranchNames_NotARepo(t *testing.T) {
 		t.Errorf("directive = %v, want NoFileComp", directive)
 	}
 }
+
+func TestCompleteWorktreeAddTag(t *testing.T) {
+	setupTaggedFixture(t,
+		taggedRepo{Name: "svc-a", Tags: []string{"backend", "shared"}},
+		taggedRepo{Name: "svc-b", Tags: []string{"backend"}},
+		taggedRepo{Name: "web", Tags: []string{"frontend"}},
+	)
+
+	t.Run("suggests every tag once", func(t *testing.T) {
+		got, directive := completeAllTags("")
+
+		slices.Sort(got)
+		want := []string{"backend", "frontend", "shared"}
+		if !slices.Equal(got, want) {
+			t.Errorf("completions %v, want %v deduplicated", got, want)
+		}
+		if directive != cobra.ShellCompDirectiveNoFileComp {
+			t.Errorf("directive = %v, want NoFileComp", directive)
+		}
+	})
+
+	t.Run("filters on the typed prefix", func(t *testing.T) {
+		got, _ := completeAllTags("back")
+		if !slices.Equal(got, []string{"backend"}) {
+			t.Errorf("completions %v, want [backend] for prefix 'back'", got)
+		}
+	})
+
+	t.Run("registered on the tag flag", func(t *testing.T) {
+		if worktreeAddCmd.Flag("tag") == nil {
+			t.Fatal("worktree add has no --tag flag")
+		}
+	})
+}
