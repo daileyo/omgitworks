@@ -13,9 +13,12 @@ import (
 	"github.com/daileyo/omgitworks/internal/config"
 )
 
-// flagWorktreeRefreshTags backs --tag. It is a slice so a repeated flag is
-// detectable and can be rejected, as for add and remove.
-var flagWorktreeRefreshTags []string
+var (
+	// flagWorktreeRefreshTags backs --tag. It is a slice so a repeated flag is
+	// detectable and can be rejected, as for add and remove.
+	flagWorktreeRefreshTags   []string
+	flagWorktreeRefreshDryRun bool
+)
 
 var worktreeRefreshCmd = &cobra.Command{
 	Use:   "refresh [repo|.]",
@@ -51,6 +54,8 @@ repositories refreshes all of them.`,
 func init() {
 	worktreeRefreshCmd.Flags().StringArrayVarP(&flagWorktreeRefreshTags, "tag", "t", nil,
 		"Select repositories by tag (single value; not repeatable)")
+	worktreeRefreshCmd.Flags().BoolVar(&flagWorktreeRefreshDryRun, "dry-run", false,
+		"Preview changes without writing them")
 	worktreeRefreshCmd.ValidArgsFunction = completeWorktreeRepoOrDot
 	_ = worktreeRefreshCmd.RegisterFlagCompletionFunc("tag",
 		func(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -82,7 +87,7 @@ func runWorktreeRefreshCommand(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return runWorktreeRefresh(cfg, repos, stdout)
+	return runWorktreeRefresh(cfg, repos, flagWorktreeRefreshDryRun, stdout)
 }
 
 // selectWorktreeRefreshTargets resolves refresh's targeting to a repository set.
@@ -133,38 +138,50 @@ func selectWorktreeRefreshTargets(cfg *config.Config, repoArg, tag string) ([]*c
 // the status cache belong to the full 'omgw refresh' and are deliberately not
 // called from here.
 //
+// A dry run reports the same changes without making them: it lists worktrees
+// but skips repair and prune, which change git state, and saves nothing.
+//
 // A repository that fails is reported and skipped; the rest still run.
 // Configuration is saved once, after every repository has been attempted: a
 // save per repository would let a later save of stale data overwrite an
 // earlier repository's result.
-func runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, stdout io.Writer) error {
+func runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, dryRun bool, stdout io.Writer) error {
 	var (
 		refreshed int
 		changed   int
 		failures  []string
 	)
 
+	if dryRun {
+		fmt.Fprintln(stdout, "Dry run — no changes will be made:")
+		fmt.Fprintln(stdout, "git worktree repair and prune were not run, so a worktree that repair would fix is shown as it currently stands.")
+		fmt.Fprintln(stdout)
+	}
+
 	for _, repo := range repos {
 		// Snapshot before syncing: the helper replaces the field in place.
 		before := slices.Clone(repo.Worktrees)
-		if err := syncRepoWorktrees(repo); err != nil {
+		after, err := refreshedWorktrees(repo, dryRun)
+		if err != nil {
 			failures = append(failures, fmt.Sprintf("  %s: %v", repo.Name, err))
 			continue
 		}
 		refreshed++
 
-		changes := diffWorktrees(before, repo.Worktrees)
+		changes := diffWorktrees(before, after)
 		if changes.changed() {
 			changed++
 			printWorktreeChanges(stdout, repo.Name, changes)
 		}
 	}
 
-	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
+	if !dryRun {
+		if err := config.Save(cfg); err != nil {
+			return fmt.Errorf("failed to save configuration: %w", err)
+		}
 	}
 
-	printWorktreeRefreshSummary(stdout, refreshed, changed, len(failures))
+	printWorktreeRefreshSummary(stdout, refreshed, changed, len(failures), dryRun)
 
 	if len(failures) > 0 {
 		fmt.Fprintf(stdout, "\n%d %s:\n%s\n",
@@ -174,6 +191,19 @@ func runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, stdout i
 	}
 
 	return nil
+}
+
+// refreshedWorktrees returns what a repository's stored worktrees are, or in a
+// dry run would be, after a refresh. Only a real run touches git state or the
+// repository's stored entries.
+func refreshedWorktrees(repo *config.Repository, dryRun bool) ([]config.Worktree, error) {
+	if dryRun {
+		return buildWorktreeEntries(repo.Path, repo.Name)
+	}
+	if err := syncRepoWorktrees(repo); err != nil {
+		return nil, err
+	}
+	return repo.Worktrees, nil
 }
 
 // worktreeChanges is the difference between a repository's stored worktrees
@@ -253,10 +283,15 @@ func printWorktreeChanges(w io.Writer, repoName string, c worktreeChanges) {
 
 // printWorktreeRefreshSummary prints the closing count line. Refreshed counts
 // repositories that synced successfully; failures are counted separately,
-// following the add and remove summaries.
-func printWorktreeRefreshSummary(w io.Writer, refreshed, changed, failed int) {
-	fmt.Fprintf(w, "\nRefreshed %d %s, %d changed",
-		refreshed, pluralize(refreshed, "repository", "repositories"), changed)
+// following the add and remove summaries. A dry run frames the same counts as
+// what would happen.
+func printWorktreeRefreshSummary(w io.Writer, refreshed, changed, failed int, dryRun bool) {
+	repositories := pluralize(refreshed, "repository", "repositories")
+	if dryRun {
+		fmt.Fprintf(w, "\nWould refresh %d %s, %d would change", refreshed, repositories, changed)
+	} else {
+		fmt.Fprintf(w, "\nRefreshed %d %s, %d changed", refreshed, repositories, changed)
+	}
 	if failed > 0 {
 		fmt.Fprintf(w, ", %d failed", failed)
 	}

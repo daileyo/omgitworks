@@ -183,7 +183,7 @@ Deliver spec Unit 2's reporting half: snapshot each repository's stored worktree
 - [x] 4.6 Write `worktree_refresh_report_test.go` covering the four test proof artifacts above, using `captureStdoutStr` for output assertions. *As built:* output is captured from the `io.Writer` passed to `runWorktreeRefresh`, not with `captureStdoutStr`. Also adds `TestDiffWorktrees` for the pure diff (unchanged lists, nil versus empty, moved worktree, a realignment plus branch change on one entry, deterministic order). `TestWorktreeRefreshTargets_SingleMatchTagIsBulk` now asserts the summary-then-errors shape.
 - [x] 4.7 Capture the mixed-run stdout transcript into `28-proofs/`.
 
-### [ ] 5.0 Add `--dry-run` preview
+### [x] 5.0 Add `--dry-run` preview
 
 Deliver spec Unit 3: `--dry-run` reports what a refresh would change and exits without saving. Because `repair` and `prune` mutate git state, dry run calls `buildWorktreeEntries` alone — the non-mutating half split out in task 1.1 — and states in its output that repair and prune were not run, so the user understands a repairable entry may appear as it currently stands.
 
@@ -198,13 +198,13 @@ Deliver spec Unit 3: `--dry-run` reports what a refresh would change and exits w
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Register the `--dry-run` flag as a `BoolVar` bound to `flagWorktreeRefreshDryRun`, with help text "Preview changes without writing them" following align's wording.
-- [ ] 5.2 In `runWorktreeRefresh`, branch on `dryRun`: call `buildWorktreeEntries(repo.Path, repo.Name)` and diff its result against the stored slice **without** assigning it, instead of calling `syncRepoWorktrees`.
-- [ ] 5.3 Skip the `config.Save` call entirely when `dryRun` is set, and confirm no other write path runs.
-- [ ] 5.4 Print the caveat sentence stating that `git worktree repair` and `git worktree prune` were not run and that a repairable worktree therefore appears as it currently stands.
-- [ ] 5.5 Reuse the same per-repository block and summary rendering as the real run, wording the counts as what would change.
-- [ ] 5.6 Write `worktree_refresh_dryrun_test.go` covering the five test proof artifacts above, reading the config file bytes directly with `os.ReadFile` for the byte-identity assertion.
-- [ ] 5.7 Capture the dry-run-then-real-run CLI transcript into `28-proofs/`.
+- [x] 5.1 Register the `--dry-run` flag as a `BoolVar` bound to `flagWorktreeRefreshDryRun`, with help text "Preview changes without writing them" following align's wording.
+- [x] 5.2 In `runWorktreeRefresh`, branch on `dryRun`: call `buildWorktreeEntries(repo.Path, repo.Name)` and diff its result against the stored slice **without** assigning it, instead of calling `syncRepoWorktrees`. *As built:* the branch lives in a small `refreshedWorktrees(repo, dryRun)` helper, so the loop, diff, and reporting are shared with the real run.
+- [x] 5.3 Skip the `config.Save` call entirely when `dryRun` is set, and confirm no other write path runs.
+- [x] 5.4 Print the caveat sentence stating that `git worktree repair` and `git worktree prune` were not run and that a repairable worktree therefore appears as it currently stands. *As built:* output opens with `Dry run — no changes will be made:`, the header `worktree align` and `worktree remove` already print, followed by `git worktree repair and prune were not run, so a worktree that repair would fix is shown as it currently stands.`
+- [x] 5.5 Reuse the same per-repository block and summary rendering as the real run, wording the counts as what would change. *As built:* the summary reads `Would refresh N repositories, M would change[, K failed]`. A failure is reported as failed even in a dry run, because the repository could not be read.
+- [x] 5.6 Write `worktree_refresh_dryrun_test.go` covering the five test proof artifacts above, reading the config file bytes directly with `os.ReadFile` for the byte-identity assertion. *As built:* reuses spec 27's `configBytes` helper instead of a new one. Adds `TestWorktreeRefreshDryRun_FilesystemUntouched` for the spec's "filesystem untouched" clause: it backdates every entry under HOME, the workspace, and the external worktrees, then compares size, mode, modification time, and content hash. The backdating is load-bearing. File timestamps come from a coarse kernel clock, and without it a mutant that re-saved identical configuration went undetected. `DoesNotRepair` checks the missing `.git` file directly rather than through `worktree list`.
+- [x] 5.7 Capture the dry-run-then-real-run CLI transcript into `28-proofs/`.
 
 ### [ ] 6.0 Document the command and clarify its scope in help text
 
