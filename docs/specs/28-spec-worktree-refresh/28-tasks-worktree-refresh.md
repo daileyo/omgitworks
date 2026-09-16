@@ -161,7 +161,7 @@ Deliver spec Unit 2's selection half by reconciling `worktreeScope` (spec 25) wi
 - [x] 3.8 Write `worktree_refresh_target_test.go` covering the six test proof artifacts above, reusing `setupTaggedFixture`, `standardFixture`, and `chdirForTest`. *As built:* also adds `TestWorktreeRefreshTargets_DotAndTagAreAnded` (the plan covered name + tag but not `.` + tag) and a `refresh` row in `TestWorktreeCompletionsRegistered`. The completion test also checks that `--tag` completes the tags in use.
 - [x] 3.9 Capture the `-t <tag>` CLI transcript into `28-proofs/`.
 
-### [ ] 4.0 Report per-repository changes and a final summary
+### [x] 4.0 Report per-repository changes and a final summary
 
 Deliver spec Unit 2's reporting half: snapshot each repository's stored worktrees before the rebuild, diff against the result keyed on path, and print the added, removed, and realigned entries for each repository that changed, followed by a summary of repositories refreshed, changed, and failed. A repository whose data did not change prints nothing.
 
@@ -175,13 +175,13 @@ Deliver spec Unit 2's reporting half: snapshot each repository's stored worktree
 
 #### 4.0 Tasks
 
-- [ ] 4.1 Define a `worktreeChanges` struct holding `Added`, `Removed`, and `Realigned` slices of `config.Worktree`, plus a `changed() bool` method.
-- [ ] 4.2 Implement `diffWorktrees(before, after []config.Worktree) worktreeChanges`, building maps keyed on `Path` — never on `Branch`, which is empty for a detached HEAD — and classifying an entry present in both whose `Aligned` differs as realigned.
-- [ ] 4.3 In `runWorktreeRefresh`, copy each repository's `Worktrees` slice before calling `syncRepoWorktrees`, since the helper reassigns the field in place.
-- [ ] 4.4 Print a per-repository block only when `changed()` is true, listing added, removed, and realigned entries with their paths and branches.
-- [ ] 4.5 Print a final summary line giving repositories refreshed, changed, and failed, using the existing `pluralize` helper for agreement.
-- [ ] 4.6 Write `worktree_refresh_report_test.go` covering the four test proof artifacts above, using `captureStdoutStr` for output assertions.
-- [ ] 4.7 Capture the mixed-run stdout transcript into `28-proofs/`.
+- [x] 4.1 Define a `worktreeChanges` struct holding `Added`, `Removed`, and `Realigned` slices of `config.Worktree`, plus a `changed() bool` method. *As built:* also holds `Rebranched`, for a worktree at an unchanged path now on a different branch (for example after a checkout inside it). Stored data changes in that case but fits none of the spec's three kinds. Reporting nothing would make a changed repository look unchanged, contradicting the spec goal "report what actually changed". It prints as a `branch` line, and a path change is still reported as a removal plus an addition.
+- [x] 4.2 Implement `diffWorktrees(before, after []config.Worktree) worktreeChanges`, building maps keyed on `Path` — never on `Branch`, which is empty for a detached HEAD — and classifying an entry present in both whose `Aligned` differs as realigned.
+- [x] 4.3 In `runWorktreeRefresh`, copy each repository's `Worktrees` slice before calling `syncRepoWorktrees`, since the helper reassigns the field in place.
+- [x] 4.4 Print a per-repository block only when `changed()` is true, listing added, removed, and realigned entries with their paths and branches.
+- [x] 4.5 Print a final summary line giving repositories refreshed, changed, and failed, using the existing `pluralize` helper for agreement. *As built:* `Refreshed N repositories, M changed[, K failed]`, where `Refreshed` counts only successfully synced repositories and failures are counted separately, following the `worktree add` and `worktree remove` summaries. The summary always prints, even when nothing changed, and the error list follows it.
+- [x] 4.6 Write `worktree_refresh_report_test.go` covering the four test proof artifacts above, using `captureStdoutStr` for output assertions. *As built:* output is captured from the `io.Writer` passed to `runWorktreeRefresh`, not with `captureStdoutStr`. Also adds `TestDiffWorktrees` for the pure diff (unchanged lists, nil versus empty, moved worktree, a realignment plus branch change on one entry, deterministic order). `TestWorktreeRefreshTargets_SingleMatchTagIsBulk` now asserts the summary-then-errors shape.
+- [x] 4.7 Capture the mixed-run stdout transcript into `28-proofs/`.
 
 ### [ ] 5.0 Add `--dry-run` preview
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -137,17 +138,33 @@ func selectWorktreeRefreshTargets(cfg *config.Config, repoArg, tag string) ([]*c
 // save per repository would let a later save of stale data overwrite an
 // earlier repository's result.
 func runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, stdout io.Writer) error {
-	var failures []string
+	var (
+		refreshed int
+		changed   int
+		failures  []string
+	)
 
 	for _, repo := range repos {
+		// Snapshot before syncing: the helper replaces the field in place.
+		before := slices.Clone(repo.Worktrees)
 		if err := syncRepoWorktrees(repo); err != nil {
 			failures = append(failures, fmt.Sprintf("  %s: %v", repo.Name, err))
+			continue
+		}
+		refreshed++
+
+		changes := diffWorktrees(before, repo.Worktrees)
+		if changes.changed() {
+			changed++
+			printWorktreeChanges(stdout, repo.Name, changes)
 		}
 	}
 
 	if err := config.Save(cfg); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
+
+	printWorktreeRefreshSummary(stdout, refreshed, changed, len(failures))
 
 	if len(failures) > 0 {
 		fmt.Fprintf(stdout, "\n%d %s:\n%s\n",
@@ -157,4 +174,105 @@ func runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, stdout i
 	}
 
 	return nil
+}
+
+// worktreeChanges is the difference between a repository's stored worktrees
+// before and after a refresh.
+type worktreeChanges struct {
+	Added      []config.Worktree
+	Removed    []config.Worktree
+	Realigned  []config.Worktree // after-state entries whose Aligned value flipped
+	Rebranched []branchChange
+}
+
+// branchChange records a worktree still at the same path but now on a
+// different branch, as happens after a checkout inside the worktree.
+type branchChange struct {
+	Worktree config.Worktree // after-state entry
+	Previous string
+}
+
+func (c worktreeChanges) changed() bool {
+	return len(c.Added)+len(c.Removed)+len(c.Realigned)+len(c.Rebranched) > 0
+}
+
+// diffWorktrees compares stored worktree entries keyed on path. Branch cannot
+// be the key: a detached HEAD has none, so two detached worktrees would
+// collapse into one. A worktree moved to a new path is therefore reported as
+// one removal and one addition, which is what happened to the stored entries.
+//
+// Output order follows the input slices, which follow git's listing, so the
+// report is deterministic.
+func diffWorktrees(before, after []config.Worktree) worktreeChanges {
+	previous := make(map[string]config.Worktree, len(before))
+	for _, wt := range before {
+		previous[wt.Path] = wt
+	}
+	current := make(map[string]bool, len(after))
+
+	var changes worktreeChanges
+	for _, wt := range after {
+		current[wt.Path] = true
+		old, existed := previous[wt.Path]
+		switch {
+		case !existed:
+			changes.Added = append(changes.Added, wt)
+		default:
+			if old.Aligned != wt.Aligned {
+				changes.Realigned = append(changes.Realigned, wt)
+			}
+			if old.Branch != wt.Branch {
+				changes.Rebranched = append(changes.Rebranched, branchChange{Worktree: wt, Previous: old.Branch})
+			}
+		}
+	}
+	for _, wt := range before {
+		if !current[wt.Path] {
+			changes.Removed = append(changes.Removed, wt)
+		}
+	}
+	return changes
+}
+
+// printWorktreeChanges prints one repository's changes, one line per entry.
+func printWorktreeChanges(w io.Writer, repoName string, c worktreeChanges) {
+	fmt.Fprintf(w, "[%s]\n", repoName)
+	for _, wt := range c.Added {
+		fmt.Fprintf(w, "  added      %s  %s  %s\n", branchLabel(wt.Branch), wt.Path, alignmentLabel(wt.Aligned))
+	}
+	for _, wt := range c.Removed {
+		fmt.Fprintf(w, "  removed    %s  %s\n", branchLabel(wt.Branch), wt.Path)
+	}
+	for _, wt := range c.Realigned {
+		fmt.Fprintf(w, "  realigned  %s  %s  now %s\n", branchLabel(wt.Branch), wt.Path, alignmentLabel(wt.Aligned))
+	}
+	for _, bc := range c.Rebranched {
+		fmt.Fprintf(w, "  branch     %s  %s  was %s\n", branchLabel(bc.Worktree.Branch), bc.Worktree.Path, branchLabel(bc.Previous))
+	}
+}
+
+// printWorktreeRefreshSummary prints the closing count line. Refreshed counts
+// repositories that synced successfully; failures are counted separately,
+// following the add and remove summaries.
+func printWorktreeRefreshSummary(w io.Writer, refreshed, changed, failed int) {
+	fmt.Fprintf(w, "\nRefreshed %d %s, %d changed",
+		refreshed, pluralize(refreshed, "repository", "repositories"), changed)
+	if failed > 0 {
+		fmt.Fprintf(w, ", %d failed", failed)
+	}
+	fmt.Fprintln(w)
+}
+
+func branchLabel(branch string) string {
+	if branch == "" {
+		return "(detached)"
+	}
+	return branch
+}
+
+func alignmentLabel(aligned bool) string {
+	if aligned {
+		return "aligned"
+	}
+	return "unaligned"
 }
