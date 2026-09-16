@@ -253,16 +253,16 @@ func IsAligned(worktreePath, repoName string) bool {
 		return false
 	}
 
-	root := resolvePath(projectsDir)
-	wt := resolvePath(worktreePath)
+	root := ResolvePath(projectsDir)
+	wt := ResolvePath(worktreePath)
 
 	return wt == root || strings.HasPrefix(wt, root+string(filepath.Separator))
 }
 
-// resolvePath resolves symlinks where it can, falling back to a lexical clean
+// ResolvePath resolves symlinks where it can, falling back to a lexical clean
 // for paths that do not exist yet. Both are needed: ~/.local/share is a symlink
 // on some setups, while the projects root may not have been created yet.
-func resolvePath(p string) string {
+func ResolvePath(p string) string {
 	if resolved, err := filepath.EvalSymlinks(p); err == nil {
 		return resolved
 	}
