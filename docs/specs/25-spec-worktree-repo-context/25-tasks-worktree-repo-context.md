@@ -140,7 +140,7 @@ already optional, without changing what omission means on either.
 - [x] 3.14 Add `TestWorktreeDotResolutionFailure`: chdir to a bare `t.TempDir()` and assert `worktreeScopeFor(cfg, ".")` returns an error satisfying `errors.Is(err, repocontext.ErrNotTracked)`, then assert both `worktreeListCmd.RunE` and `worktreeAlignCmd.RunE` surface that same error for the `.` argument.
 - [x] 3.15 Update the `list` and `align` `Long` help text and the `Subcommands:` block in `worktreeCmd.Long` to document the `.` form alongside the existing `[repo]` form.
 
-### [ ] 4.0 Context-Aware Tab Completion for `add`, `list`, and `align`
+### [x] 4.0 Context-Aware Tab Completion for `add`, `list`, and `align`
 
 None of these three subcommands currently registers a `ValidArgsFunction`; this task adds
 completion so the new argument shapes are discoverable.
@@ -157,16 +157,16 @@ completion so the new argument shapes are discoverable.
 
 #### 4.0 Tasks
 
-- [ ] 4.1 Add `func ListBranches(repoPath string) ([]string, error)` to `internal/git/toplevel.go`, implemented as `gitCommand(repoPath, "for-each-ref", "--format=%(refname:short)", "refs/heads")` split on newlines with empty lines dropped. Cover it in `toplevel_test.go` with a repository holding two branches.
-- [ ] 4.2 In `cmd/omgitworks/worktree.go`, add `func completeBranchNames(repoPath, toComplete string) ([]string, cobra.ShellCompDirective)` that calls `git.ListBranches` and applies the same case-insensitive prefix filter used by `completeRepoNames` in `cmd/omgitworks/tag.go:197`, returning `cobra.ShellCompDirectiveNoFileComp`.
-- [ ] 4.3 Add `func completeWorktreeAddArgs(_ *cobra.Command, args []string, toComplete string)`: for the first positional, load config and try `repocontext.ResolveCurrent`; on success return that repository's branches, on `ErrNotTracked` fall back to `completeRepoNames`. For the second positional, return branches for the repository named by `args[0]` via `findRepositories`. Return no completions beyond two arguments.
-- [ ] 4.4 Add `func completeWorktreeRepoOrDot(_ *cobra.Command, args []string, toComplete string)`: return nothing once one argument is present; otherwise start from `completeRepoNames` and prepend `.` when `repocontext.ResolveCurrent` succeeds and `.` matches `toComplete`.
-- [ ] 4.5 Register `worktreeAddCmd.ValidArgsFunction = completeWorktreeAddArgs` in `worktree_add.go`'s `init`, and `worktreeListCmd.ValidArgsFunction` / `worktreeAlignCmd.ValidArgsFunction = completeWorktreeRepoOrDot` in their respective `init` functions. Leave `completeWorktreeBranches` on `worktreeCmd` and `worktreeNavigateCmd` unchanged.
-- [ ] 4.6 Create `cmd/omgitworks/worktree_completion_test.go` with `TestCompleteWorktreeAdd_BranchesWhenResolved`: fixture repository with an extra branch, chdir into it, and assert the returned slice contains the branch names and the directive is `ShellCompDirectiveNoFileComp`.
-- [ ] 4.7 Add `TestCompleteWorktreeAdd_ReposWhenUnresolved`: chdir to a bare `t.TempDir()` and assert the completions are the tracked repository names, not branches.
-- [ ] 4.8 Add `TestCompleteWorktreeAdd_SecondArgument`: assert `completeWorktreeAddArgs` with `args = []string{"my-repo"}` returns that repository's branches regardless of the working directory.
-- [ ] 4.9 Add `TestCompleteWorktreeRepoOrDot`: assert `.` is included when the working directory resolves, absent when it does not, and that supplying a first argument yields no completions.
-- [ ] 4.10 Add a prefix-filter case asserting `completeWorktreeRepoOrDot` with `toComplete = "my"` omits `.`, confirming `.` is filtered on the typed prefix like every other suggestion.
+- [x] 4.1 Add `func ListBranches(repoPath string) ([]string, error)` to `internal/git/toplevel.go`, implemented as `gitCommand(repoPath, "for-each-ref", "--format=%(refname:short)", "refs/heads")` split on newlines with empty lines dropped. Cover it in `toplevel_test.go` with a repository holding two branches.
+- [x] 4.2 In `cmd/omgitworks/worktree.go`, add `func completeBranchNames(repoPath, toComplete string) ([]string, cobra.ShellCompDirective)` that calls `git.ListBranches` and applies the same case-insensitive prefix filter used by `completeRepoNames` in `cmd/omgitworks/tag.go:197`, returning `cobra.ShellCompDirectiveNoFileComp`.
+- [x] 4.3 Add `func completeWorktreeAddArgs(_ *cobra.Command, args []string, toComplete string)`: for the first positional, load config and try `repocontext.ResolveCurrent`; on success return that repository's branches, on `ErrNotTracked` fall back to `completeRepoNames`. For the second positional, return branches for the repository named by `args[0]` via `findRepositories`. Return no completions beyond two arguments.
+- [x] 4.4 Add `func completeWorktreeRepoOrDot(_ *cobra.Command, args []string, toComplete string)`: return nothing once one argument is present; otherwise start from `completeRepoNames` and prepend `.` when `repocontext.ResolveCurrent` succeeds and `.` matches `toComplete`.
+- [x] 4.5 Register `worktreeAddCmd.ValidArgsFunction = completeWorktreeAddArgs` in `worktree_add.go`'s `init`, and `worktreeListCmd.ValidArgsFunction` / `worktreeAlignCmd.ValidArgsFunction = completeWorktreeRepoOrDot` in their respective `init` functions. Leave `completeWorktreeBranches` on `worktreeCmd` and `worktreeNavigateCmd` unchanged.
+- [x] 4.6 Create `cmd/omgitworks/worktree_completion_test.go` with `TestCompleteWorktreeAdd_BranchesWhenResolved`: fixture repository with an extra branch, chdir into it, and assert the returned slice contains the branch names and the directive is `ShellCompDirectiveNoFileComp`.
+- [x] 4.7 Add `TestCompleteWorktreeAdd_ReposWhenUnresolved`: chdir to a bare `t.TempDir()` and assert the completions are the tracked repository names, not branches.
+- [x] 4.8 Add `TestCompleteWorktreeAdd_SecondArgument`: assert `completeWorktreeAddArgs` with `args = []string{"my-repo"}` returns that repository's branches regardless of the working directory.
+- [x] 4.9 Add `TestCompleteWorktreeRepoOrDot`: assert `.` is included when the working directory resolves, absent when it does not, and that supplying a first argument yields no completions.
+- [x] 4.10 Add a prefix-filter case asserting `completeWorktreeRepoOrDot` with `toComplete = "my"` omits `.`, confirming `.` is filtered on the typed prefix like every other suggestion.
 
 ### [ ] 5.0 Documentation and Shell-Integration Regression Guard
 

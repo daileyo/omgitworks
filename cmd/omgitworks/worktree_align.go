@@ -55,6 +55,7 @@ Examples:
 
 func init() {
 	worktreeAlignCmd.Flags().BoolVar(&flagDryRun, "dry-run", false, "Preview moves without executing them")
+	worktreeAlignCmd.ValidArgsFunction = completeWorktreeRepoOrDot
 	worktreeCmd.AddCommand(worktreeAlignCmd)
 }
 

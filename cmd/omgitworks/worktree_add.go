@@ -45,6 +45,7 @@ Examples:
 }
 
 func init() {
+	worktreeAddCmd.ValidArgsFunction = completeWorktreeAddArgs
 	worktreeCmd.AddCommand(worktreeAddCmd)
 }
 
