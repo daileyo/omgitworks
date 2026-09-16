@@ -130,7 +130,7 @@ func TestBuildWorktreeEntries_RecomputesAligned(t *testing.T) {
 	}
 }
 
-func TestSyncRepoWorktrees_PropagatesListError(t *testing.T) {
+func TestSyncRepoWorktrees_FailureLeavesStoredData(t *testing.T) {
 	_, repoDir := setupWorktreeTestRepo(t, "my-repo")
 	stored := []config.Worktree{{Path: "/stale", Branch: "stale"}}
 	repo := &config.Repository{Name: "my-repo", Path: repoDir, Worktrees: stored}
@@ -140,7 +140,7 @@ func TestSyncRepoWorktrees_PropagatesListError(t *testing.T) {
 		t.Error("buildWorktreeEntries: expected an error for an unreadable repository")
 	}
 	if err := syncRepoWorktrees(repo); err == nil {
-		t.Error("syncRepoWorktrees: expected the list error to be returned, not swallowed")
+		t.Error("syncRepoWorktrees: expected the failure to be returned, not swallowed")
 	}
 	if len(repo.Worktrees) != 1 || repo.Worktrees[0].Path != "/stale" {
 		t.Errorf("stored data must be left untouched on failure, got %+v", repo.Worktrees)
@@ -185,5 +185,24 @@ func TestSyncRepoWorktrees_PrunesDeadEntries(t *testing.T) {
 	}
 	if containsPath(gitWorktreePaths(t, repoDir), gone) {
 		t.Error("prune should have removed git's record of the deleted worktree")
+	}
+}
+
+func TestSyncRepoWorktrees_ReportsFailingStep(t *testing.T) {
+	workspace, _ := setupWorktreeTestRepo(t, "my-repo")
+	// A directory that exists but is not a repository: every git step fails,
+	// and the first one, repair, must be the one reported.
+	plain := filepath.Join(workspace, "plain")
+	if err := os.MkdirAll(plain, 0755); err != nil {
+		t.Fatal(err)
+	}
+	repo := &config.Repository{Name: "plain", Path: plain}
+
+	err := syncRepoWorktrees(repo)
+	if err == nil {
+		t.Fatal("expected an error for a directory that is not a repository")
+	}
+	if !strings.Contains(err.Error(), "worktree repair") {
+		t.Errorf("error should name the failing step, got: %v", err)
 	}
 }

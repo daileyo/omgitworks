@@ -38,7 +38,7 @@ Items the validation phase must cover explicitly, beyond the spec's own requirem
   Validate each as a changed behavior of `worktree remove`, with evidence. Points 1 and 2
   are covered by `TestRunWorktreeRemove_RefreshUsesSharedRules`. Points 3 and 4 are covered
   only at the helper level (`TestBuildWorktreeEntries_NilWhenNoneSurvive`,
-  `TestSyncRepoWorktrees_PropagatesListError`), so validation must decide whether that is
+  `TestSyncRepoWorktrees_FailureLeavesStoredData`), so validation must decide whether that is
   enough. Spec 27's validation report needs no change: its only reference, row U1-11
   ("`refreshWorktreeData` + one `config.Save`"), still holds.
 - **`worktree add` behavior changed in the same way** (task 1.6), and so did
@@ -104,7 +104,7 @@ Consolidate the divergent repair → prune → list → rebuild copies into one 
 - [x] 1.9 Run `make ci` and confirm the pre-existing align and add tests pass with their assertions unchanged.
 - [x] 1.10 *Added after rebasing onto spec 27.* Replace the body of `refreshWorktreeData` in `worktree_remove.go` with `syncRepoWorktrees` per repository, dropping its unused `cfg` parameter. Add `TestRunWorktreeRemove_RefreshUsesSharedRules`, which must fail against the previous `worktree_remove.go`, and re-run spec 27's `TestRunWorktreeRemove_*`, `TestWorktreeRemoveBulk_*`, and `TestWorktreeRemove_*` suites.
 
-### [ ] 2.0 Add `omgw worktree refresh` with scoped metadata re-sync
+### [x] 2.0 Add `omgw worktree refresh` with scoped metadata re-sync
 
 Create `cmd/omgitworks/worktree_refresh.go` and implement spec Unit 1: for each targeted repository run the shared helper, rebuild stored `Worktrees` with `Aligned` recomputed, skip and report per-repository failures, save configuration exactly once, and exit non-zero when any repository failed. Targeting is stubbed to "all repositories" here and completed in task 3.0.
 
@@ -117,21 +117,22 @@ Create `cmd/omgitworks/worktree_refresh.go` and implement spec Unit 1: for each 
 - Test: `TestWorktreeRefresh_ClearsWhenEmpty` passes — a repository ending with zero worktrees has `Worktrees` set to nil, demonstrating the empty case
 - Test: `TestWorktreeRefresh_LeavesOtherDataUntouched` passes — the repository list, `User`/`Email`/`Tags` fields, and the status cache file are unchanged across a refresh, demonstrating scope containment per success metric 3
 - Test: `TestWorktreeRefresh_PartialFailure` passes — with the first of two repositories broken, the second is still refreshed and the command returns a non-nil error, demonstrating partial-failure handling and the exit contract
-- Test: `TestWorktreeRefresh_SingleSave` passes — every refreshed repository retains its rebuilt entries, which a per-repository save of stale data would not produce, demonstrating the single-save requirement the way `TestWorktreeAddBulk_SingleSave` does
+- Test: `TestWorktreeRefresh_SingleSave` passes — every refreshed repository retains its rebuilt entries, which a per-repository save of stale data would not produce, demonstrating the single-save requirement the way `TestWorktreeAddBulk_SingleSave` does. *Amended during implementation:* the test catches the harmful form, where stale per-repository snapshots overwrite earlier results. It cannot count writes, so the literal single `config.Save` call outside the loop is confirmed by inspection
 - CLI: transcript against a scratch fixture workspace showing `omgw worktree list`, a hand-made worktree change, `omgw worktree refresh`, and `omgw worktree list` reflecting it, demonstrating the feature end to end
 
 #### 2.0 Tasks
 
-- [ ] 2.1 Create `cmd/omgitworks/worktree_refresh.go` declaring `worktreeRefreshCmd` with `Use: "refresh [repo|.]"`, a `Short`, and `Args: cobra.MaximumNArgs(1)`.
-- [ ] 2.2 Add an `init()` that registers the command with `worktreeCmd.AddCommand(worktreeRefreshCmd)`, following the pattern in `worktree_align.go`.
-- [ ] 2.3 Declare package-scope flag variables with refresh-specific names — `flagWorktreeRefreshDryRun` and `flagWorktreeRefreshTags` — so they do not collide with align's `flagDryRun` or add's `flagWorktreeAddTags`.
-- [ ] 2.4 Implement `runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, dryRun bool) error` that iterates the targeted repositories calling `syncRepoWorktrees`.
-- [ ] 2.5 Accumulate per-repository failures into a slice, print each as it happens, and continue to the next repository rather than aborting the run.
-- [ ] 2.6 Call `config.Save(cfg)` exactly once after the loop completes, never inside it.
-- [ ] 2.7 Return a non-nil error when the failure slice is non-empty so the process exits non-zero, and nil otherwise.
-- [ ] 2.8 Confirm by inspection that the run path calls no repository-discovery, user-detection, or status-cache function, and add a comment stating that those belong to the full `omgw refresh`.
-- [ ] 2.9 Write `worktree_refresh_test.go` covering the eight test proof artifacts above, reusing `setupTwoWorktreeTestRepos`, `breakRepo`, and `saveConfigForWorktreeTests`.
-- [ ] 2.10 Capture the end-to-end CLI transcript against a scratch fixture workspace and save it under `docs/specs/28-spec-worktree-refresh/28-proofs/`.
+- [x] 2.1 Create `cmd/omgitworks/worktree_refresh.go` declaring `worktreeRefreshCmd` with `Use: "refresh [repo|.]"`, a `Short`, and `Args: cobra.MaximumNArgs(1)`. *As built:* `Use: "refresh"` with `cobra.NoArgs` until task 3.0 adds targeting, so the command never silently ignores an argument.
+- [x] 2.2 Add an `init()` that registers the command with `worktreeCmd.AddCommand(worktreeRefreshCmd)`, following the pattern in `worktree_align.go`.
+- [x] 2.3 Declare package-scope flag variables with refresh-specific names — `flagWorktreeRefreshDryRun` and `flagWorktreeRefreshTags` — so they do not collide with align's `flagDryRun` or add's `flagWorktreeAddTags`. *As built:* the names are reserved, but each is declared in the task that registers its flag (3.2 and 5.1), so no unused variable is committed.
+- [x] 2.4 Implement `runWorktreeRefresh(cfg *config.Config, repos []*config.Repository, dryRun bool) error` that iterates the targeted repositories calling `syncRepoWorktrees`. *As built:* `runWorktreeRefresh(cfg, repos, stdout io.Writer) error`. It takes a writer like `runWorktreeRemove`, and `dryRun` is added in task 5.0.
+- [x] 2.5 Accumulate per-repository failures into a slice, print each as it happens, and continue to the next repository rather than aborting the run. *As built:* failures are listed together after the run, following `worktree remove`'s bulk output, instead of as they happen.
+- [x] 2.6 Call `config.Save(cfg)` exactly once after the loop completes, never inside it.
+- [x] 2.7 Return a non-nil error when the failure slice is non-empty so the process exits non-zero, and nil otherwise.
+- [x] 2.8 Confirm by inspection that the run path calls no repository-discovery, user-detection, or status-cache function, and add a comment stating that those belong to the full `omgw refresh`.
+- [x] 2.9 Write `worktree_refresh_test.go` covering the eight test proof artifacts above, reusing `setupTwoWorktreeTestRepos`, `breakRepo`, and `saveConfigForWorktreeTests`.
+- [x] 2.10 Capture the end-to-end CLI transcript against a scratch fixture workspace and save it under `docs/specs/28-spec-worktree-refresh/28-proofs/`.
+- [x] 2.11 *Added during implementation.* Make `syncRepoWorktrees` stop at the first failing step instead of ignoring repair and prune errors, since the spec requires a repository whose repair, prune, **or** list step fails to be reported and skipped. Confirm first that `git worktree repair` does not exit non-zero on the damage it fixes. Add `TestSyncRepoWorktrees_ReportsFailingStep`.
 
 ### [ ] 3.0 Implement the four targeting forms and their unmatched-filter errors
 

@@ -45,12 +45,18 @@ func buildWorktreeEntries(repoPath, repoName string) ([]config.Worktree, error) 
 // worktree directory is still intact, so reversing the order throws away
 // worktrees that were recoverable.
 //
-// Repair and prune errors are deliberately ignored: both are best-effort
-// cleanup, and the list that follows is the authoritative check on whether the
-// repository can be read at all.
+// The first failing step stops the sync and leaves stored data untouched; the
+// error names the git command that failed. Stopping on a repair error is safe:
+// git worktree repair exits zero on every kind of damage it inspects, including
+// the damage it fixes, and fails only when the repository itself cannot be read
+// — in which case prune and list would fail too.
 func syncRepoWorktrees(repo *config.Repository) error {
-	_ = git.RepairWorktrees(repo.Path)
-	_ = git.PruneWorktrees(repo.Path)
+	if err := git.RepairWorktrees(repo.Path); err != nil {
+		return err
+	}
+	if err := git.PruneWorktrees(repo.Path); err != nil {
+		return err
+	}
 
 	wts, err := buildWorktreeEntries(repo.Path, repo.Name)
 	if err != nil {
