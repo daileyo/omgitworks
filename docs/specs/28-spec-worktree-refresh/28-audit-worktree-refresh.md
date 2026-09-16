@@ -66,6 +66,10 @@ planned test artifact. Summary by unit:
      a test that an align run over a repository with one missing-directory
      worktree drops that entry and writes no empty array — and add a matching
      proof artifact under 1.0.
+   - *Correction (run 3):* the nil-versus-empty part of this finding is wrong.
+     `omitempty` omits empty non-nil slices as well as nil ones, and both reload as
+     nil, so the difference never reaches `config.json`. The finding still stands
+     for the missing-directory skip, which does change stored data.
 
 2. **Task 1.5 offers a choice whose riskier branch has no test.**
    - Risk: the repair + prune pass at `worktree_align.go:87` is not redundant
@@ -96,7 +100,8 @@ planned test artifact. Summary by unit:
    precedes a loop over stored `repo.Worktrees` and `git.IsWorktreeLocked` /
    move calls, confirming finding 2. `internal/config/config.go:86` was read to
    confirm the `omitempty` tag that makes the nil-versus-empty change
-   observable, confirming finding 1.
+   observable, confirming finding 1. (Corrected in run 3: the tag does not make it
+   observable — see finding 1.)
 4. Inconsistency resolution: an earlier draft proof artifact for task 5.0
    proposed asserting dry-run non-mutation "against a recording git runner".
    `internal/git` was checked and has no injectable seam — `gitCommand` calls
@@ -131,3 +136,16 @@ FLAG findings from run 1 were accepted without remediation.
 - **Still-failing REQUIRED gates:** none.
 - **Newly introduced findings:** none. Run 1's flag 1 (no align-specific path test)
   still stands. `add` and `remove` now each have one; align does not.
+
+## Re-Audit Delta (Run 3)
+
+Correction only; no gate status changes.
+
+- **Wrong claim:** runs 1 and 2 said the nil-versus-empty `Worktrees` change was
+  observable in `config.json` because of the `omitempty` tag. A direct
+  `encoding/json` check shows `omitempty` omits empty non-nil slices too, and
+  `{}` reloads as nil, so both states serialize and reload identically. The
+  difference exists only in memory before a save.
+- **Effect:** flag 1 is narrowed to the missing-directory skip, which does
+  change stored data. The helper comment, the task file's validation notes, and
+  the task 1.0 proof file were corrected to match.

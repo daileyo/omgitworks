@@ -106,7 +106,7 @@ func TestBuildWorktreeEntries_NilWhenNoneSurvive(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if wts != nil {
-		t.Errorf("all worktrees missing: expected nil so the field is omitted, got %#v", wts)
+		t.Errorf("all worktrees missing: expected nil, matching what a reload from disk produces, got %#v", wts)
 	}
 }
 

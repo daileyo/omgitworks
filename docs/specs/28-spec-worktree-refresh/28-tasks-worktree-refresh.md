@@ -31,8 +31,8 @@ Items the validation phase must cover explicitly, beyond the spec's own requirem
   the shared helper, so after a removal `worktree remove` now also:
   1. repairs, then prunes, the repository's other worktrees;
   2. drops stored entries whose directory no longer exists on disk;
-  3. stores nil rather than an empty slice when no worktrees remain, omitting `worktrees`
-     from `config.json`;
+  3. holds nil rather than an empty slice in memory when no worktrees remain (on disk the
+     two are identical: `omitempty` drops both, and both reload as nil);
   4. leaves stored data untouched when the repository cannot be listed.
 
   Validate each as a changed behavior of `worktree remove`, with evidence. Points 1 and 2
