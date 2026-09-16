@@ -287,3 +287,43 @@ func TestWorktreeRemove_ConfirmListingMatchesDryRun(t *testing.T) {
 			strip(dry), strip(confirm))
 	}
 }
+
+// Regression guard: the preview must show every repository the real run will
+// skip, and count them the way the real run's summary does. A repository
+// lacking the branch was once silently omitted from --dry-run while the real
+// run reported it as skipped.
+func TestWorktreeRemove_PreviewShowsSkips(t *testing.T) {
+	resetRemoveFlags(t)
+	paths := setupTaggedFixture(t,
+		taggedRepo{Name: "svc-a", Tags: []string{"backend"}},
+		taggedRepo{Name: "svc-b", Tags: []string{"backend"}},
+		taggedRepo{Name: "svc-c", Tags: []string{"backend"}},
+		taggedRepo{Name: "svc-d", Tags: []string{"backend"}},
+	)
+	// svc-a: removable. svc-b: no branch. svc-c: locked. svc-d: removable.
+	addWorktreeTo(t, "svc-a", "feat-x")
+	addWorktreeTo(t, "svc-c", "feat-x")
+	addWorktreeTo(t, "svc-d", "feat-x")
+	lockWorktree(t, paths["svc-c"], projectsPath(t, "svc-c", "feat-x"), "in review")
+
+	preview, err := removeWithInput(t, "backend", "feat-x", removeOptions{DryRun: true}, "")
+	if err != nil {
+		t.Fatalf("dry run failed: %v", err)
+	}
+
+	if !strings.Contains(preview, "svc-b") {
+		t.Errorf("preview omits svc-b, which the real run will skip:\n%s", preview)
+	}
+	if !strings.Contains(preview, "Total: 2 worktrees to remove, 2 skipped") {
+		t.Errorf("preview count does not match the real run's accounting:\n%s", preview)
+	}
+
+	resetRemoveFlags(t)
+	real, err := removeWithInput(t, "backend", "feat-x", removeOptions{Yes: true}, "")
+	if err != nil {
+		t.Fatalf("real run failed: %v", err)
+	}
+	if !strings.Contains(real, "Removed 2 worktrees, skipped 2") {
+		t.Errorf("real run summary differs from the preview's count:\n%s", real)
+	}
+}

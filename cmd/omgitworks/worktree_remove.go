@@ -221,7 +221,7 @@ func worktreeIsDirty(worktreePath string) bool {
 // Both callers are previews of work not yet done, so both use the same
 // conditional wording: the listing a user approves at the prompt is textually
 // identical to the one --dry-run shows.
-func renderRemovalPlan(plans []removalPlan, opts removeOptions, w io.Writer) {
+func renderRemovalPlan(plans []removalPlan, missing []error, opts removeOptions, w io.Writer) {
 	const verb = "Would remove"
 	if opts.DryRun {
 		fmt.Fprintln(w, "Dry run — no changes will be made:")
@@ -234,21 +234,41 @@ func renderRemovalPlan(plans []removalPlan, opts removeOptions, w io.Writer) {
 	}
 	fmt.Fprintln(w)
 
+	// Counted the way the real run's summary counts them, so the preview and
+	// the outcome agree: locked worktrees and repositories without the branch
+	// are skips, not removals.
+	toRemove, skipped := 0, len(missing)
+
 	for _, p := range plans {
 		suffix := ""
 		switch {
 		case p.Locked:
+			skipped++
 			suffix = "  (locked: will be skipped)"
 			if p.LockReason != "" {
 				suffix = fmt.Sprintf("  (locked: %s — will be skipped)", p.LockReason)
 			}
 		case p.Dirty:
+			toRemove++
 			suffix = "  (has uncommitted changes — will fail without --force)"
+		default:
+			toRemove++
 		}
 		fmt.Fprintf(w, "%s [%s] %s\n  path: %s%s\n\n", verb, p.RepoName, p.Branch, p.Path, suffix)
 	}
 
-	fmt.Fprintf(w, "Total: %d %s\n", len(plans), pluralize(len(plans), "worktree", "worktrees"))
+	// Repositories that will be skipped because they lack the branch are shown
+	// too: whether the tag matched what the user expected is exactly what a
+	// preview exists to reveal.
+	for _, m := range missing {
+		fmt.Fprintf(w, "Would skip — %v\n\n", m)
+	}
+
+	fmt.Fprintf(w, "Total: %d %s to remove", toRemove, pluralize(toRemove, "worktree", "worktrees"))
+	if skipped > 0 {
+		fmt.Fprintf(w, ", %d skipped", skipped)
+	}
+	fmt.Fprintln(w)
 }
 
 // confirmRemoval asks the user to approve the plan. Declining is an answer, not
@@ -289,13 +309,13 @@ func runWorktreeRemove(cfg *config.Config, repos []*config.Repository, branch st
 	}
 
 	if opts.DryRun {
-		renderRemovalPlan(plans, opts, stdout)
+		renderRemovalPlan(plans, missing, opts, stdout)
 		return nil
 	}
 
 	// More than one worktree is gated: the user sees the whole plan first.
 	if len(plans) > 1 && !opts.Yes {
-		renderRemovalPlan(plans, opts, stdout)
+		renderRemovalPlan(plans, missing, opts, stdout)
 		fmt.Fprintln(stdout)
 		ok, err := confirmRemoval(stdout, stdin)
 		if err != nil {
@@ -406,9 +426,12 @@ func cleanupEmptyWorktreeDirs(repoName, removedPath string) error {
 
 	dir := filepath.Dir(git.ResolvePath(removedPath))
 	for {
-		// Never walk above, or remove, the repository's projects directory
-		// unless it is itself empty — and never the projects root.
-		if !strings.HasPrefix(dir, repoDir) {
+		// Stay inside this repository's projects directory. A bare string
+		// prefix is not containment: projects/svc-a-old has the prefix
+		// projects/svc-a but belongs to another repository. Require the path
+		// to be the directory itself or to continue past a separator, the same
+		// test git.IsAligned uses.
+		if dir != repoDir && !strings.HasPrefix(dir, repoDir+string(filepath.Separator)) {
 			return nil
 		}
 

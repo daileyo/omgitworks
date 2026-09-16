@@ -308,3 +308,60 @@ func TestCompleteWorktreeRemove(t *testing.T) {
 		}
 	})
 }
+
+// Regression guard: cleanup must stay inside the repository's own projects
+// directory. A string prefix is not containment — projects/svc-a-old has the
+// prefix projects/svc-a but belongs to another repository, and was once
+// deleted when a stray svc-a worktree inside it was removed.
+func TestRunWorktreeRemove_CleanupRespectsSiblingRepo(t *testing.T) {
+	resetRemoveFlags(t)
+	paths := setupTaggedFixture(t,
+		taggedRepo{Name: "svc-a", Tags: nil},
+		taggedRepo{Name: "svc-a-old", Tags: nil},
+	)
+
+	siblingDir := projectsPath(t, "svc-a-old")
+	if err := os.MkdirAll(siblingDir, 0755); err != nil {
+		t.Fatalf("failed to create sibling projects dir: %v", err)
+	}
+
+	// A worktree of svc-a placed inside the sibling repository's directory.
+	stray := filepath.Join(siblingDir, "feat-stray")
+	cmd := exec.Command("git", "worktree", "add", "-b", "feat-stray", stray)
+	cmd.Dir = paths["svc-a"]
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add failed: %s\n%s", err, out)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	for i := range cfg.Repositories {
+		if cfg.Repositories[i].Name == "svc-a" {
+			cfg.Repositories[i].Worktrees = []config.Worktree{{Path: stray, Branch: "feat-stray"}}
+		}
+	}
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("failed to save config: %v", err)
+	}
+
+	// Target svc-a unambiguously through the resolver: "svc-a" as a name
+	// pattern would also match svc-a-old.
+	chdirForTest(t, paths["svc-a"])
+	cfg, _ = config.Load()
+	repos, err := selectWorktreeTargets(cfg, "", "")
+	if err != nil {
+		t.Fatalf("selection failed: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := runWorktreeRemove(cfg, repos, "feat-stray", removeOptions{}, true, &buf, strings.NewReader("")); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Fatal("fixture: the stray worktree was not removed")
+	}
+	if _, err := os.Stat(siblingDir); err != nil {
+		t.Errorf("cleanup deleted another repository's projects directory %s", siblingDir)
+	}
+}
