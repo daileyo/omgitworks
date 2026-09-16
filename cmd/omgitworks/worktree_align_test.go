@@ -95,7 +95,7 @@ func TestRunWorktreeAlign_MovesUnaligned(t *testing.T) {
 	setupAlignTestRepo(t)
 
 	output := captureStdoutStr(func() {
-		if err := runWorktreeAlign("", false); err != nil {
+		if err := runWorktreeAlign(worktreeScope{}, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -152,7 +152,7 @@ func TestRunWorktreeAlign_SkipsAligned(t *testing.T) {
 	}
 
 	output := captureStdoutStr(func() {
-		if err := runWorktreeAlign("", false); err != nil {
+		if err := runWorktreeAlign(worktreeScope{}, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -170,7 +170,7 @@ func TestRunWorktreeAlign_DryRun(t *testing.T) {
 	unalignedPath := cfg.Repositories[0].Worktrees[0].Path
 
 	output := captureStdoutStr(func() {
-		if err := runWorktreeAlign("", true); err != nil {
+		if err := runWorktreeAlign(worktreeScope{}, true); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -257,7 +257,7 @@ func TestRunWorktreeAlign_DuplicateNames(t *testing.T) {
 	}
 
 	output := captureStdoutStr(func() {
-		if err := runWorktreeAlign("", false); err != nil {
+		if err := runWorktreeAlign(worktreeScope{}, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -273,7 +273,7 @@ func TestRunWorktreeAlign_FilterByRepo(t *testing.T) {
 
 	// Try aligning a different repo — should find nothing to align
 	output := captureStdoutStr(func() {
-		if err := runWorktreeAlign("other-repo", false); err != nil {
+		if err := runWorktreeAlign(worktreeScope{NamePattern: "other-repo", Label: "other-repo"}, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -284,7 +284,7 @@ func TestRunWorktreeAlign_FilterByRepo(t *testing.T) {
 
 	// Now align the actual repo
 	_ = captureStdoutStr(func() {
-		if err := runWorktreeAlign("my-repo", false); err != nil {
+		if err := runWorktreeAlign(worktreeScope{NamePattern: "my-repo", Label: "my-repo"}, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -309,7 +309,7 @@ func TestRunWorktreeAlign_MigratesLegacyWtLayout(t *testing.T) {
 		t.Fatalf("fixture should start in the legacy location: %v", err)
 	}
 
-	if err := runWorktreeAlign("", false); err != nil {
+	if err := runWorktreeAlign(worktreeScope{}, false); err != nil {
 		t.Fatalf("align returned error: %v", err)
 	}
 
@@ -353,7 +353,7 @@ func TestRunWorktreeAlign_LegacyDirWithOtherContentKept(t *testing.T) {
 		t.Fatalf("failed to write extra file: %v", err)
 	}
 
-	if err := runWorktreeAlign("", false); err != nil {
+	if err := runWorktreeAlign(worktreeScope{}, false); err != nil {
 		t.Fatalf("align returned error: %v", err)
 	}
 

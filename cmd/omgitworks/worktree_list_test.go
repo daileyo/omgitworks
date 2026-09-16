@@ -44,7 +44,7 @@ func TestRunWorktreeList_AllWorktrees(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList("", &buf)
+	err := runWorktreeList(worktreeScope{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestRunWorktreeList_FilterByRepo(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList("repo-a", &buf)
+	err := runWorktreeList(worktreeScope{NamePattern: "repo-a", Label: "repo-a"}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestRunWorktreeList_NoWorktrees(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList("", &buf)
+	err := runWorktreeList(worktreeScope{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestRunWorktreeList_NoWorktreesForRepo(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList("plain-repo", &buf)
+	err := runWorktreeList(worktreeScope{NamePattern: "plain-repo", Label: "plain-repo"}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestRunWorktreeList_UnalignedIndicator(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList("", &buf)
+	err := runWorktreeList(worktreeScope{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

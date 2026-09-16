@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daileyo/omgitworks/internal/config"
-	"github.com/daileyo/omgitworks/internal/filter"
 	"github.com/daileyo/omgitworks/internal/git"
 	"github.com/daileyo/omgitworks/internal/xdg"
 )
@@ -17,7 +16,7 @@ import (
 var flagDryRun bool
 
 var worktreeAlignCmd = &cobra.Command{
-	Use:   "align [repo]",
+	Use:   "align [repo|.]",
 	Short: "Move unaligned worktrees into the projects root",
 	Long: `Move all unaligned worktrees into the XDG projects root
 using git worktree move (requires Git 2.17+).
@@ -28,17 +27,29 @@ Without an argument, all repos are processed.
 If two worktrees would produce the same directory name, a -dup-NN suffix is
 appended (where NN is 00-99).
 
+Passing "." aligns only the repository the current directory belongs to.
+Omitting the argument continues to process every tracked repository.
+
 Examples:
   gws worktree align                # Align all repos
   gws worktree align my-repo        # Align only my-repo
+  gws worktree align .              # Align only the current repo
   gws worktree align --dry-run      # Preview moves without executing`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		repoFilter := ""
+		repoArg := ""
 		if len(args) == 1 {
-			repoFilter = args[0]
+			repoArg = args[0]
 		}
-		return runWorktreeAlign(repoFilter, flagDryRun)
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		scope, err := worktreeScopeFor(cfg, repoArg)
+		if err != nil {
+			return err
+		}
+		return runWorktreeAlign(scope, flagDryRun)
 	},
 }
 
@@ -57,7 +68,7 @@ type alignPlan struct {
 	Renamed  bool // true if a -dup-NN suffix was applied
 }
 
-func runWorktreeAlign(repoFilter string, dryRun bool) error {
+func runWorktreeAlign(scope worktreeScope, dryRun bool) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -67,7 +78,7 @@ func runWorktreeAlign(repoFilter string, dryRun bool) error {
 
 	for i := range cfg.Repositories {
 		repo := &cfg.Repositories[i]
-		if repoFilter != "" && !filter.MatchesPattern(repo.Name, repoFilter) {
+		if !scope.matches(repo) {
 			continue
 		}
 
