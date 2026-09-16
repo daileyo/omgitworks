@@ -457,10 +457,10 @@ repo you branch. See [Configuration](configuration.md#file-locations) for the fu
 ### List Worktrees
 
 ```
-omgw worktree list [repo]
+omgw worktree list [repo|.]
 ```
 
-List all git worktrees across tracked repositories. Optionally filter to a single repo.
+List all git worktrees across tracked repositories. Optionally filter to a single repo, or to the current one with `.`.
 
 ```bash
 # List all worktrees across all repos
@@ -468,7 +468,12 @@ omgw worktree list
 
 # List worktrees for a specific repo
 omgw worktree list my-repo
+
+# List worktrees for the repo you are standing in
+omgw worktree list .
 ```
+
+Omitting the argument still means **all** repositories. Use `.` to scope to the current one — see [Current-Repository Targeting](#current-repository-targeting).
 
 **Example output:**
 
@@ -485,7 +490,7 @@ Worktrees inside the projects root are marked `aligned`. Worktrees elsewhere —
 ### Add Worktree
 
 ```
-omgw worktree add <repo> <branch>
+omgw worktree add [repo] <branch>
 ```
 
 Create a new worktree. It is created at `<projects-root>/<repo>/<branch>`, defaulting to `~/.local/share/gws/projects/<repo>/<branch>`.
@@ -496,14 +501,22 @@ omgw worktree add my-repo feat-new-feature
 
 # Branch names with slashes are preserved
 omgw worktree add my-repo hotfix/urgent-fix
+
+# Omit the repo when you are standing in it
+cd ~/code/my-repo
+omgw worktree add feat-new-feature
 ```
 
 The directory is created automatically if it doesn't exist. If the branch already exists in the repo, it is checked out into the worktree. If the branch doesn't exist, a new branch is created.
 
+When the repo argument is omitted, it is determined from your current directory — see [Current-Repository Targeting](#current-repository-targeting). Naming a repo explicitly always takes precedence, so `omgw worktree add other-repo feat-x` acts on `other-repo` no matter where you are standing.
+
+Tab completion follows the same rule: inside a tracked repository the first argument completes to that repository's **branch names**, and outside one it completes to **repository names**.
+
 ### Align Worktrees
 
 ```
-omgw worktree align [repo] [--dry-run]
+omgw worktree align [repo|.] [--dry-run]
 ```
 
 Move all unaligned worktrees into the projects root using `git worktree move` (requires Git 2.17+). This is also how you migrate worktrees from the legacy `<repo>.wt/` layout.
@@ -517,7 +530,15 @@ omgw worktree align
 
 # Align only a specific repo
 omgw worktree align my-repo
+
+# Align only the repo you are standing in
+omgw worktree align .
+
+# Preview just the current repo
+omgw worktree align . --dry-run
 ```
+
+As with `list`, omitting the argument still means **all** repositories, and `.` scopes to the current one.
 
 **Example dry-run output:**
 
@@ -537,6 +558,32 @@ Total: 1 worktree to align
 - If two worktrees would produce the same directory name, a `-dup-NN` suffix is appended
 - If a move fails partway, the worktree is rolled back to its original location
 - After alignment, worktree data is re-discovered and saved to config
+
+### Current-Repository Targeting
+
+`omgw worktree add` lets you omit the repo argument, and `omgw worktree list` and `omgw worktree align` accept `.`, when you want to act on the repository you are already standing in.
+
+In every case the repository is determined the same way:
+
+- The enclosing checkout is found with `git rev-parse --show-toplevel`, so any subdirectory works, at any depth.
+- That path is matched against your tracked repositories, then against their recorded worktrees.
+- **Standing inside a worktree resolves to the repository that owns it**, so you can create a sibling worktree without returning to the main checkout.
+
+Symlinked paths are resolved on both sides, so a symlinked workspace or data directory still matches.
+
+If the current directory is not inside a tracked repository — including when it is not a git repository at all — the command exits non-zero with:
+
+```
+Error: current directory is not inside a tracked repository
+  Supply a repository argument, or run 'omgw add' to track this repository
+```
+
+Worktree paths come from your config, which is populated by `omgw refresh`. A worktree created outside omgitworks and not yet refreshed will not resolve; run `omgw refresh` first.
+
+Two things deliberately do **not** change:
+
+- Bare `omgw worktree list` and bare `omgw worktree align` still mean *all* repositories. Only `.` narrows them.
+- `omgw worktree <branch>` navigation stays global across the workspace; it does not prefer the current repository.
 
 ### Navigate to Worktrees
 

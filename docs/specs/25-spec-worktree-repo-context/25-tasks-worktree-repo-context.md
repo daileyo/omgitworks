@@ -168,7 +168,7 @@ completion so the new argument shapes are discoverable.
 - [x] 4.9 Add `TestCompleteWorktreeRepoOrDot`: assert `.` is included when the working directory resolves, absent when it does not, and that supplying a first argument yields no completions.
 - [x] 4.10 Add a prefix-filter case asserting `completeWorktreeRepoOrDot` with `toComplete = "my"` omits `.`, confirming `.` is filtered on the typed prefix like every other suggestion.
 
-### [ ] 5.0 Documentation and Shell-Integration Regression Guard
+### [x] 5.0 Documentation and Shell-Integration Regression Guard
 
 Publish the new invocation forms and prove the shell function was untouched.
 
@@ -181,14 +181,14 @@ Publish the new invocation forms and prove the shell function was untouched.
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Update the `omgw worktree add` section of `docs/site/commands-core.md` (around line 488): change the signature line to `omgw worktree add [repo] <branch>`, add an example run from inside a repository with the repository argument omitted, and state that the two-argument form is unchanged and always wins over detection.
-- [ ] 5.2 Add a short subsection under `worktree add` explaining that the repository is resolved from the current directory, that running from inside one of the repository's worktrees resolves to the owning repository, and that resolution reads worktree paths recorded by `omgw refresh`.
-- [ ] 5.3 Update the `omgw worktree list` section (around line 460) and the `omgw worktree align` section (around line 506): document `.` as the current-repository argument, show an example of each, and state explicitly that omitting the argument still means all repositories.
-- [ ] 5.4 Document the resolution-failure error once, quoting the exact message from `repocontext.ErrNotTracked` and both remedies, and cross-reference it from the `add`, `list`, and `align` sections rather than repeating it three times.
-- [ ] 5.5 Confirm `cmd/omgitworks/shellinit.go` is unmodified with `git diff --stat cmd/omgitworks/shellinit.go`, and run `go test -run TestShellTemplates -v ./cmd/omgitworks/` to capture the seven passing cases as the regression proof.
-- [ ] 5.6 Build with `make build` and capture `--help` output for `worktree add`, `worktree list`, and `worktree align`, checking each against the documentation edited above and correcting whichever is wrong.
-- [ ] 5.7 Run `make ci` and capture the passing output. Resolve any `golangci-lint` finding in the new package rather than adding an exclusion.
-- [ ] 5.8 Record the CLI transcripts named in the 1.0-4.0 proof artifacts, using a scratch workspace and placeholder repository names, and confirm no absolute home paths or identifying values remain in the captured output before it is committed.
+- [x] 5.1 Update the `omgw worktree add` section of `docs/site/commands-core.md` (around line 488): change the signature line to `omgw worktree add [repo] <branch>`, add an example run from inside a repository with the repository argument omitted, and state that the two-argument form is unchanged and always wins over detection.
+- [x] 5.2 Add a short subsection under `worktree add` explaining that the repository is resolved from the current directory, that running from inside one of the repository's worktrees resolves to the owning repository, and that resolution reads worktree paths recorded by `omgw refresh`.
+- [x] 5.3 Update the `omgw worktree list` section (around line 460) and the `omgw worktree align` section (around line 506): document `.` as the current-repository argument, show an example of each, and state explicitly that omitting the argument still means all repositories.
+- [x] 5.4 Document the resolution-failure error once, quoting the exact message from `repocontext.ErrNotTracked` and both remedies, and cross-reference it from the `add`, `list`, and `align` sections rather than repeating it three times.
+- [x] 5.5 Confirm `cmd/omgitworks/shellinit.go` is unmodified with `git diff --stat cmd/omgitworks/shellinit.go`, and run `go test -run TestShellTemplates -v ./cmd/omgitworks/` to capture the seven passing cases as the regression proof.
+- [x] 5.6 Build with `make build` and capture `--help` output for `worktree add`, `worktree list`, and `worktree align`, checking each against the documentation edited above and correcting whichever is wrong.
+- [x] 5.7 Run `make ci` and capture the passing output. Resolve any `golangci-lint` finding in the new package rather than adding an exclusion.
+- [x] 5.8 Record the CLI transcripts named in the 1.0-4.0 proof artifacts, using a scratch workspace and placeholder repository names, and confirm no absolute home paths or identifying values remain in the captured output before it is committed.
 
 ## Requirement Coverage Map
 
