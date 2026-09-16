@@ -164,3 +164,48 @@ func searchSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+// TestWorktreeAdd_RepairsBeforeRebuild pins a deliberate behavior change: the
+// add path used to list worktrees without repairing or pruning first, so it
+// stored whatever git reported, dead entries included. It now shares the
+// repair → prune → rebuild sequence with refresh and align.
+//
+// A surviving entry alone cannot tell the two apart — listing without repair
+// still reports a worktree whose .git file is missing — so the test asserts the
+// effects only repair and prune produce.
+func TestWorktreeAdd_RepairsBeforeRebuild(t *testing.T) {
+	workspace, repoDir := setupWorktreeTestRepo(t, "my-repo")
+	mislinked := filepath.Join(workspace, "mislinked")
+	gone := filepath.Join(workspace, "gone")
+	gitWorktreeAdd(t, repoDir, "mislinked", mislinked)
+	gitWorktreeAdd(t, repoDir, "gone", gone)
+	breakWorktreeLink(t, mislinked)
+	if err := os.RemoveAll(gone); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runWorktreeAdd("my-repo", "feature-x"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Repair ran: the broken link was restored rather than left for prune.
+	if _, err := os.Stat(filepath.Join(mislinked, ".git")); err != nil {
+		t.Errorf("repair should have restored the mislinked worktree's .git file: %v", err)
+	}
+	// Prune ran: git no longer records the deleted worktree.
+	if containsPath(gitWorktreePaths(t, repoDir), gone) {
+		t.Error("prune should have removed git's record of the deleted worktree")
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	stored := map[string]bool{}
+	for _, wt := range cfg.Repositories[0].Worktrees {
+		stored[wt.Branch] = true
+	}
+	if !stored["mislinked"] || !stored["feature-x"] || stored["gone"] {
+		t.Errorf("expected mislinked and feature-x stored without gone, got %v", stored)
+	}
+}

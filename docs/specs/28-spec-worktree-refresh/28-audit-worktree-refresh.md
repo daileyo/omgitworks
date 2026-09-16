@@ -109,3 +109,25 @@ planned test artifact. Summary by unit:
    flags concern regression risk on call sites outside spec 28's feature
    surface, introduced by the spec-sanctioned consolidation. Neither blocks
    implementation.
+
+## Re-Audit Delta (Run 2)
+
+Triggered by a scope change made during implementation, not by remediation. The two
+FLAG findings from run 1 were accepted without remediation.
+
+- **Cause:** spec 27 (`worktree remove`), developed on a sibling branch, added a fourth
+  list → rebuild copy (`refreshWorktreeData`, `worktree_remove.go:396`). With user
+  approval, the branch was rebased onto `feat/worktree-remove` (`9bae1a6`). Sub-task
+  1.10 absorbs the copy and adds a remove-path test.
+- **Planning fix:** task 3.0 had planned to reuse spec 26's selection helpers.
+  Spec 27 moved them to `worktree.go` as `selectWorktreeTargets` / `singleTagValue`.
+  `selectWorktreeTargets` turned out to conflict with refresh's contract: with no
+  arguments it resolves the current repository rather than every repository, and it
+  rejects a multi-match name pattern. Tasks 3.1 and 3.3 now reuse only the building
+  blocks and forbid reusing the table. Task 3.0 gains two proof artifacts guarding
+  against that mistake and against deriving single-repository mode from a match count.
+- **Changed gate statuses:** none. Requirement-to-test traceability is still 24/24;
+  the added artifacts strengthen existing mappings.
+- **Still-failing REQUIRED gates:** none.
+- **Newly introduced findings:** none. Run 1's flag 1 (no align-specific path test)
+  still stands. `add` and `remove` now each have one; align does not.

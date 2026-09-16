@@ -195,17 +195,10 @@ func createWorktreeForRepo(repo *config.Repository, branch string) (string, erro
 	}
 
 	// Re-discover worktrees for this repo so the saved config is accurate.
-	entries, err := git.ListWorktrees(repo.Path)
-	if err == nil {
-		wts := make([]config.Worktree, len(entries))
-		for j, e := range entries {
-			wts[j] = config.Worktree{
-				Path:    e.Path,
-				Branch:  e.Branch,
-				Aligned: git.IsAligned(e.Path, repo.Name),
-			}
-		}
-		repo.Worktrees = wts
+	// The worktree already exists at this point, so the error says so rather
+	// than reading as though creation failed.
+	if err := syncRepoWorktrees(repo); err != nil {
+		return "", fmt.Errorf("created worktree at %s but could not refresh stored worktree data (run 'omgw worktree refresh'): %w", destPath, err)
 	}
 
 	return destPath, nil

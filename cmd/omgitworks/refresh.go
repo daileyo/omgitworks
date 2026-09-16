@@ -108,35 +108,12 @@ func runRefresh() error {
 func discoverWorktrees(repos []config.Repository) int {
 	count := 0
 	for i := range repos {
-		// Repair broken links first, then prune truly dead entries
-		_ = git.RepairWorktrees(repos[i].Path)
-		_ = git.PruneWorktrees(repos[i].Path)
-		entries, err := git.ListWorktrees(repos[i].Path)
-		if err != nil {
+		if err := syncRepoWorktrees(&repos[i]); err != nil {
 			continue
 		}
-		if len(entries) == 0 {
-			repos[i].Worktrees = nil
-			continue
+		if len(repos[i].Worktrees) > 0 {
+			count++
 		}
-		var wts []config.Worktree
-		for _, e := range entries {
-			// Skip worktrees whose path no longer exists (prunable)
-			if _, err := os.Stat(e.Path); err != nil {
-				continue
-			}
-			wts = append(wts, config.Worktree{
-				Path:    e.Path,
-				Branch:  e.Branch,
-				Aligned: git.IsAligned(e.Path, repos[i].Name),
-			})
-		}
-		if len(wts) == 0 {
-			repos[i].Worktrees = nil
-			continue
-		}
-		repos[i].Worktrees = wts
-		count++
 	}
 	return count
 }

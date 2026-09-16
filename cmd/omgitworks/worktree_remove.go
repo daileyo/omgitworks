@@ -362,7 +362,7 @@ func runWorktreeRemove(cfg *config.Config, repos []*config.Repository, branch st
 	}
 
 	if removed > 0 {
-		refreshWorktreeData(cfg, repos)
+		refreshWorktreeData(repos)
 		if err := config.Save(cfg); err != nil {
 			return fmt.Errorf("failed to save configuration: %w", err)
 		}
@@ -392,24 +392,12 @@ func runWorktreeRemove(cfg *config.Config, repos []*config.Repository, branch st
 }
 
 // refreshWorktreeData re-discovers worktrees for the affected repositories so
-// the single save at the end of the run records accurate state.
-func refreshWorktreeData(cfg *config.Config, repos []*config.Repository) {
+// the single save at the end of the run records accurate state. A repository
+// that cannot be read keeps its stored data.
+func refreshWorktreeData(repos []*config.Repository) {
 	for _, repo := range repos {
-		entries, err := git.ListWorktrees(repo.Path)
-		if err != nil {
-			continue
-		}
-		wts := make([]config.Worktree, len(entries))
-		for i, e := range entries {
-			wts[i] = config.Worktree{
-				Path:    e.Path,
-				Branch:  e.Branch,
-				Aligned: git.IsAligned(e.Path, repo.Name),
-			}
-		}
-		repo.Worktrees = wts
+		_ = syncRepoWorktrees(repo)
 	}
-	_ = cfg
 }
 
 // cleanupEmptyWorktreeDirs removes directories left empty by a removal, walking
