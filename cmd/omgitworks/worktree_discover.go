@@ -12,8 +12,9 @@ import (
 // changes it, which is what lets a dry run use it on its own.
 //
 // Entries whose directory no longer exists are skipped, and a repository with
-// no surviving entries yields nil rather than an empty slice, so the field is
-// omitted from config.json instead of being written as an empty array.
+// no surviving entries yields nil rather than an empty slice. On disk the two
+// are indistinguishable — omitempty drops both and both reload as nil — so this
+// only keeps in-memory state consistent with what a reload would produce.
 func buildWorktreeEntries(repoPath, repoName string) ([]config.Worktree, error) {
 	entries, err := git.ListWorktrees(repoPath)
 	if err != nil {

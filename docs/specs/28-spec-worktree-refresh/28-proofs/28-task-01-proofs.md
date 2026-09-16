@@ -16,7 +16,8 @@ read-only half by itself.
 
 - The full sequence has exactly one caller of `git.ListWorktrees`, down from four.
 - The helper keeps `refresh.go`'s stricter semantics: a missing directory is skipped,
-  an empty result is nil so `worktrees` is omitted from `config.json`, and a list
+  an empty result is nil (in memory only: on disk `omitempty` makes nil and empty
+  identical), and a list
   failure is returned while stored data is left untouched.
 - Repair runs before prune, and a test fails if the order is reversed.
 - The `add` path's behavior change — it now repairs, prunes, skips missing paths, and
