@@ -56,7 +56,7 @@ and 28 — the exact drift the shared model exists to prevent.
 
 ## Tasks
 
-### [ ] 1.0 The `git.RemoveWorktree` Primitive and Its Safety Semantics
+### [x] 1.0 The `git.RemoveWorktree` Primitive and Its Safety Semantics
 
 The git-level operation, including the two safety behaviors every higher form inherits:
 git's refusal on a dirty worktree, and the lock guarantee.
@@ -72,20 +72,20 @@ git's refusal on a dirty worktree, and the lock guarantee.
 
 #### 1.0 Tasks
 
-- [ ] 1.1 Rebase this branch onto `feat/worktree-add-by-tag`, then confirm `internal/repocontext` and `selectWorktreeAddTargets` are present. Run `make ci` once for a green baseline before any change.
-- [ ] 1.2 Add `func RemoveWorktree(repoPath, worktreePath string, force bool) error` to `internal/git/worktree.go`, next to `AddWorktree` (line 107), running `gitCommand(repoPath, "worktree", "remove", worktreePath)` and appending `--force` only when `force` is true. Match the existing parameter order convention of `MoveWorktree(repoPath, currentPath, newPath)`.
-- [ ] 1.3 Wrap a failure as `failed to remove worktree: %w` so git's own text stays visible. Question 5b deferred the dirty check to git, so replacing git's wording would hide the only explanation the user gets for a refusal.
-- [ ] 1.4 Document on `RemoveWorktree` that it deliberately does **not** check locks: `IsWorktreeLocked` is consulted by callers before the subprocess runs, so the dry-run preview can mark locked entries without a failed git call.
-- [ ] 1.5 Confirm by inspection that `RemoveWorktree` issues no branch-affecting command — no `branch -d`, no `branch -D`. Removing a checkout must never discard the work on it.
-- [ ] 1.6 Extend `internal/git/worktree_test.go` with a fixture helper creating a repository plus a real worktree on a named branch, reusing the `initTestRepo` pattern already in that package.
-- [ ] 1.7 Write `TestRemoveWorktree`: remove a clean worktree and assert the directory is gone and `ListWorktrees` no longer reports it.
-- [ ] 1.8 Write `TestRemoveWorktree_DirtyRefused`: modify a tracked file in the worktree, assert removal fails with `force=false`, then assert it succeeds with `force=true`.
-- [ ] 1.9 Write `TestRemoveWorktree_UntrackedRefused`: add an untracked file and assert the same refusal, showing the guard is git's and broader than modified files.
-- [ ] 1.10 Write `TestRemoveWorktree_BranchSurvives`: after removing the worktree, assert `git branch --list <branch>` still reports the branch.
-- [ ] 1.11 Write `TestRemoveWorktree_ErrorKeepsGitReason`: assert the error from a refused removal still contains git's own wording rather than a replacement message.
-- [ ] 1.12 Run `gofmt -l`, `go vet ./internal/...`, and `golangci-lint run ./internal/...`; resolve findings rather than adding exclusions.
+- [x] 1.1 Rebase this branch onto `feat/worktree-add-by-tag`, then confirm `internal/repocontext` and `selectWorktreeAddTargets` are present. Run `make ci` once for a green baseline before any change.
+- [x] 1.2 Add `func RemoveWorktree(repoPath, worktreePath string, force bool) error` to `internal/git/worktree.go`, next to `AddWorktree` (line 107), running `gitCommand(repoPath, "worktree", "remove", worktreePath)` and appending `--force` only when `force` is true. Match the existing parameter order convention of `MoveWorktree(repoPath, currentPath, newPath)`.
+- [x] 1.3 Wrap a failure as `failed to remove worktree: %w` so git's own text stays visible. Question 5b deferred the dirty check to git, so replacing git's wording would hide the only explanation the user gets for a refusal.
+- [x] 1.4 Document on `RemoveWorktree` that it deliberately does **not** check locks: `IsWorktreeLocked` is consulted by callers before the subprocess runs, so the dry-run preview can mark locked entries without a failed git call.
+- [x] 1.5 Confirm by inspection that `RemoveWorktree` issues no branch-affecting command — no `branch -d`, no `branch -D`. Removing a checkout must never discard the work on it.
+- [x] 1.6 Extend `internal/git/worktree_test.go` with a fixture helper creating a repository plus a real worktree on a named branch, reusing the `initTestRepo` pattern already in that package.
+- [x] 1.7 Write `TestRemoveWorktree`: remove a clean worktree and assert the directory is gone and `ListWorktrees` no longer reports it.
+- [x] 1.8 Write `TestRemoveWorktree_DirtyRefused`: modify a tracked file in the worktree, assert removal fails with `force=false`, then assert it succeeds with `force=true`.
+- [x] 1.9 Write `TestRemoveWorktree_UntrackedRefused`: add an untracked file and assert the same refusal, showing the guard is git's and broader than modified files.
+- [x] 1.10 Write `TestRemoveWorktree_BranchSurvives`: after removing the worktree, assert `git branch --list <branch>` still reports the branch.
+- [x] 1.11 Write `TestRemoveWorktree_ErrorKeepsGitReason`: assert the error from a refused removal still contains git's own wording rather than a replacement message.
+- [x] 1.12 Run `gofmt -l`, `go vet ./internal/...`, and `golangci-lint run ./internal/...`; resolve findings rather than adding exclusions.
 
-### [ ] 2.0 Individual Removal: `omgw worktree remove <repo> <branch>`
+### [x] 2.0 Individual Removal: `omgw worktree remove <repo> <branch>`
 
 The command itself in its single-repository forms, including the `rm` alias, the
 current-directory form, branch matching, directory cleanup, and persistence.
@@ -103,26 +103,26 @@ current-directory form, branch matching, directory cleanup, and persistence.
 
 #### 2.0 Tasks
 
-- [ ] 2.1 Create `cmd/omgitworks/worktree_remove.go` with `worktreeRemoveCmd`, `Use: "remove [repo] <branch>"`, `Aliases: []string{"rm"}`, `Args: cobra.RangeArgs(1, 2)`, registered in `init()` via `worktreeCmd.AddCommand`. No command sets `Aliases` today, so verify the alias renders in help — `main.go`'s usage template already has an Aliases block.
-- [ ] 2.2 Add `func findWorktreeForBranch(repo *config.Repository, branch string) (config.Worktree, bool)` matching `wt.Branch == branch` exactly. Deliberately not `filter.MatchesPattern`: a partial match here would delete the wrong worktree.
-- [ ] 2.3 Add `func removeWorktreeForRepo(repo *config.Repository, branch string, force bool) (removedPath string, err error)`: locate the worktree, check `git.IsWorktreeLocked` **first**, call `git.RemoveWorktree`, then refresh `repo.Worktrees` via `git.ListWorktrees`. Perform no `config.Save` and no printing, mirroring spec 26's `createWorktreeForRepo`.
-- [ ] 2.4 Introduce typed sentinels so callers classify outcomes without matching strings: `worktreeNotFoundError{Repo, Branch}` and `worktreeLockedError{Repo, Branch, Reason}`. The locked case must be returned **before** `git.RemoveWorktree` is called, and regardless of `force`.
-- [ ] 2.5 Add `func cleanupEmptyWorktreeDirs(repoName, removedPath string) error`: walk upward from the removed worktree's parent, removing directories only while they are empty, stopping at the repository's projects directory and never removing the projects root itself. Follow the conservative shape of `removeEmptyLegacyDir` in `worktree_align.go:282`.
-- [ ] 2.6 Ensure 2.5 handles slashed branch names: removing `hotfix/urgent` must leave no empty `hotfix/` directory behind, while a repository directory still holding another worktree is left untouched.
-- [ ] 2.7 Add `runWorktreeRemove(cfg, repos, branch string, opts removeOptions, stdout io.Writer, stdin io.Reader) error` as the single removal loop, taking injected I/O from the outset so task 4.0's confirmation path is testable. Follow `runNavigate` in `navigate.go:24`.
-- [ ] 2.8 Save configuration once after the loop, and only when at least one removal succeeded, matching spec 26's single-save rule.
-- [ ] 2.9 Register `--force` on the command, plumbed through `removeOptions` to `git.RemoveWorktree`. It must never be implied by `--yes` or by tag selection.
-- [ ] 2.10 Create `cmd/omgitworks/worktree_remove_test.go` with a fixture creating tracked repositories that each already have a worktree, reusing `setupTaggedFixture` from spec 26 where it fits.
-- [ ] 2.11 Write `TestRunWorktreeRemove_Individual`: assert the worktree is gone from disk, absent from `git.ListWorktrees`, and absent from the reloaded configuration.
-- [ ] 2.12 Write `TestRunWorktreeRemove_CurrentRepo`: chdir into the repository, pass one positional, and assert the correct worktree is removed via the spec 25 resolver.
-- [ ] 2.13 Write `TestRunWorktreeRemove_ExactBranchMatch`: with a worktree on `feat-auth`, assert branch `feat` removes nothing and errors.
-- [ ] 2.14 Write `TestRunWorktreeRemove_NoSuchBranch`: assert a non-zero result and an error naming both the repository and the branch.
-- [ ] 2.15 Write `TestRunWorktreeRemove_LockedSkipped` with two sub-cases, `force=false` and `force=true`, asserting in both that the worktree still exists and the lock reason is reported. Create the lock by writing git's `.git/worktrees/<name>/locked` file, which is what `IsWorktreeLocked` reads.
-- [ ] 2.16 Write `TestRunWorktreeRemove_BranchSurvives` at the command level, asserting `git branch --list` still reports the branch after removal.
-- [ ] 2.17 Write `TestRunWorktreeRemove_CleansEmptyDirs` with two sub-cases: a nested `hotfix/urgent` branch leaves no empty `hotfix/`, and a repository directory holding a second worktree is left in place.
-- [ ] 2.18 Write `TestWorktreeRemoveCmd_Alias`, asserting `rm` resolves to `worktreeRemoveCmd` through cobra's command lookup rather than by reading the `Aliases` field directly.
+- [x] 2.1 Create `cmd/omgitworks/worktree_remove.go` with `worktreeRemoveCmd`, `Use: "remove [repo] <branch>"`, `Aliases: []string{"rm"}`, `Args: cobra.RangeArgs(1, 2)`, registered in `init()` via `worktreeCmd.AddCommand`. No command sets `Aliases` today, so verify the alias renders in help — `main.go`'s usage template already has an Aliases block.
+- [x] 2.2 Add `func findWorktreeForBranch(repo *config.Repository, branch string) (config.Worktree, bool)` matching `wt.Branch == branch` exactly. Deliberately not `filter.MatchesPattern`: a partial match here would delete the wrong worktree.
+- [x] 2.3 Add `func removeWorktreeForRepo(repo *config.Repository, branch string, force bool) (removedPath string, err error)`: locate the worktree, check `git.IsWorktreeLocked` **first**, call `git.RemoveWorktree`, then refresh `repo.Worktrees` via `git.ListWorktrees`. Perform no `config.Save` and no printing, mirroring spec 26's `createWorktreeForRepo`.
+- [x] 2.4 Introduce typed sentinels so callers classify outcomes without matching strings: `worktreeNotFoundError{Repo, Branch}` and `worktreeLockedError{Repo, Branch, Reason}`. The locked case must be returned **before** `git.RemoveWorktree` is called, and regardless of `force`.
+- [x] 2.5 Add `func cleanupEmptyWorktreeDirs(repoName, removedPath string) error`: walk upward from the removed worktree's parent, removing directories only while they are empty, stopping at the repository's projects directory and never removing the projects root itself. Follow the conservative shape of `removeEmptyLegacyDir` in `worktree_align.go:282`.
+- [x] 2.6 Ensure 2.5 handles slashed branch names: removing `hotfix/urgent` must leave no empty `hotfix/` directory behind, while a repository directory still holding another worktree is left untouched.
+- [x] 2.7 Add `runWorktreeRemove(cfg, repos, branch string, opts removeOptions, stdout io.Writer, stdin io.Reader) error` as the single removal loop, taking injected I/O from the outset so task 4.0's confirmation path is testable. Follow `runNavigate` in `navigate.go:24`.
+- [x] 2.8 Save configuration once after the loop, and only when at least one removal succeeded, matching spec 26's single-save rule.
+- [x] 2.9 Register `--force` on the command, plumbed through `removeOptions` to `git.RemoveWorktree`. It must never be implied by `--yes` or by tag selection.
+- [x] 2.10 Create `cmd/omgitworks/worktree_remove_test.go` with a fixture creating tracked repositories that each already have a worktree, reusing `setupTaggedFixture` from spec 26 where it fits.
+- [x] 2.11 Write `TestRunWorktreeRemove_Individual`: assert the worktree is gone from disk, absent from `git.ListWorktrees`, and absent from the reloaded configuration.
+- [x] 2.12 Write `TestRunWorktreeRemove_CurrentRepo`: chdir into the repository, pass one positional, and assert the correct worktree is removed via the spec 25 resolver.
+- [x] 2.13 Write `TestRunWorktreeRemove_ExactBranchMatch`: with a worktree on `feat-auth`, assert branch `feat` removes nothing and errors.
+- [x] 2.14 Write `TestRunWorktreeRemove_NoSuchBranch`: assert a non-zero result and an error naming both the repository and the branch.
+- [x] 2.15 Write `TestRunWorktreeRemove_LockedSkipped` with two sub-cases, `force=false` and `force=true`, asserting in both that the worktree still exists and the lock reason is reported. Create the lock by writing git's `.git/worktrees/<name>/locked` file, which is what `IsWorktreeLocked` reads.
+- [x] 2.16 Write `TestRunWorktreeRemove_BranchSurvives` at the command level, asserting `git branch --list` still reports the branch after removal.
+- [x] 2.17 Write `TestRunWorktreeRemove_CleansEmptyDirs` with two sub-cases: a nested `hotfix/urgent` branch leaves no empty `hotfix/`, and a repository directory holding a second worktree is left in place.
+- [x] 2.18 Write `TestWorktreeRemoveCmd_Alias`, asserting `rm` resolves to `worktreeRemoveCmd` through cobra's command lookup rather than by reading the `Aliases` field directly.
 
-### [ ] 3.0 Tag-Scoped Removal on the Shared Targeting Model
+### [x] 3.0 Tag-Scoped Removal on the Shared Targeting Model
 
 Extend removal across a tagged group, reusing spec 26's precedence table rather than
 restating it, and adopt its partial-failure contract.
@@ -140,24 +140,24 @@ restating it, and adopt its partial-failure contract.
 
 #### 3.0 Tasks
 
-- [ ] 3.1 Move `selectWorktreeAddTargets` from `worktree_add.go` to `worktree.go`, renaming it `selectWorktreeTargets`, and move `allRepositories`, `selectByName`, and `filterByTag` with it. Update `worktree_add.go`'s three call sites. Pure rename and relocation — no logic change.
-- [ ] 3.2 Run spec 26's `TestWorktreeAddSelection_*` suite unchanged and confirm it is green. Those tests are the guard that the extraction preserved behavior; if any assertion needs editing, the move was not behavior-preserving.
-- [ ] 3.3 Register `-t`/`--tag` on `worktreeRemoveCmd` as `StringArrayVarP`, reusing spec 26's `worktreeAddTag`-style single-value validation. Factor that helper into a shared `singleTagValue(flagValues []string) (string, error)` so `add` and `remove` share one rejection message.
-- [ ] 3.4 Wire `worktreeRemoveCmd`'s `RunE` through `selectWorktreeTargets`, so `remove` inherits all four precedence rows with no second copy of the table.
-- [ ] 3.5 In the removal loop, classify `worktreeNotFoundError` as a **skip** rather than a failure when the run targets more than one repository: a tagged repository that simply never had this branch is not an error. Keep it a hard error in the single-repository form, mirroring spec 26's `single` flag.
-- [ ] 3.6 Derive that `single` flag from the **invocation shape** (`tag == "" && len(args) < 2`), not from `len(repos)`. Spec 26's validation found the `len(repos) == 1` derivation turns a legitimate skip into a hard error when a tag matches exactly one repository; do not reintroduce it here.
-- [ ] 3.7 Collect per-repository failures into `errors []string` as `  %s: %v`, print the counted summary of removed/skipped/failed through `pluralize`, then the separately headed error block, matching `runWorktreeAlign`.
-- [ ] 3.8 Return spec 26's `errPartialFailure` sentinel when any removal failed, and set `SilenceErrors`/`SilenceUsage` on `worktreeRemoveCmd`, printing non-sentinel errors explicitly as `runWorktreeAddCommand` does. Without the explicit print, every ordinary error on this command becomes silent.
-- [ ] 3.9 Create `cmd/omgitworks/worktree_remove_bulk_test.go` with a fixture of three tagged repositories holding the same branch's worktree plus one untagged repository that also holds it.
-- [ ] 3.10 Write `TestWorktreeRemoveBulk_RemovesAcrossTag`, asserting removal in all three tagged repositories and that the untagged repository's worktree survives.
-- [ ] 3.11 Write `TestWorktreeRemoveTargets_PrecedenceTable` with a sub-case per row, asserting `remove` selects the same repository sets `add` does.
-- [ ] 3.12 Write `TestWorktreeRemoveBulk_SkipsMissingBranch`: give one tagged repository no worktree for the branch and assert it is announced as a skip, the run returns nil, and the others are removed.
-- [ ] 3.13 Write `TestWorktreeRemoveBulk_SingleMatchTagStillBulk`, the spec 26 regression: a tag matching exactly one repository that lacks the branch must skip and return nil, not error.
-- [ ] 3.14 Write `TestWorktreeRemoveBulk_SummaryAndExit` over a mixed run, asserting the three counts appear and the sentinel is returned, with a sub-case asserting nil when only skips occurred.
-- [ ] 3.15 Write `TestWorktreeRemoveBulk_NoRestore`: break a later repository, and assert earlier removals stay removed on disk and in the saved configuration.
-- [ ] 3.16 Write `TestWorktreeRemoveBulk_SingleSave`: reload configuration from disk and assert every removal is reflected, guarding the overwriting-save failure mode.
+- [x] 3.1 Move `selectWorktreeAddTargets` from `worktree_add.go` to `worktree.go`, renaming it `selectWorktreeTargets`, and move `allRepositories`, `selectByName`, and `filterByTag` with it. Update `worktree_add.go`'s three call sites. Pure rename and relocation — no logic change.
+- [x] 3.2 Run spec 26's `TestWorktreeAddSelection_*` suite unchanged and confirm it is green. Those tests are the guard that the extraction preserved behavior; if any assertion needs editing, the move was not behavior-preserving.
+- [x] 3.3 Register `-t`/`--tag` on `worktreeRemoveCmd` as `StringArrayVarP`, reusing spec 26's `worktreeAddTag`-style single-value validation. Factor that helper into a shared `singleTagValue(flagValues []string) (string, error)` so `add` and `remove` share one rejection message.
+- [x] 3.4 Wire `worktreeRemoveCmd`'s `RunE` through `selectWorktreeTargets`, so `remove` inherits all four precedence rows with no second copy of the table.
+- [x] 3.5 In the removal loop, classify `worktreeNotFoundError` as a **skip** rather than a failure when the run targets more than one repository: a tagged repository that simply never had this branch is not an error. Keep it a hard error in the single-repository form, mirroring spec 26's `single` flag.
+- [x] 3.6 Derive that `single` flag from the **invocation shape** (`tag == "" && len(args) < 2`), not from `len(repos)`. Spec 26's validation found the `len(repos) == 1` derivation turns a legitimate skip into a hard error when a tag matches exactly one repository; do not reintroduce it here.
+- [x] 3.7 Collect per-repository failures into `errors []string` as `  %s: %v`, print the counted summary of removed/skipped/failed through `pluralize`, then the separately headed error block, matching `runWorktreeAlign`.
+- [x] 3.8 Return spec 26's `errPartialFailure` sentinel when any removal failed, and set `SilenceErrors`/`SilenceUsage` on `worktreeRemoveCmd`, printing non-sentinel errors explicitly as `runWorktreeAddCommand` does. Without the explicit print, every ordinary error on this command becomes silent.
+- [x] 3.9 Create `cmd/omgitworks/worktree_remove_bulk_test.go` with a fixture of three tagged repositories holding the same branch's worktree plus one untagged repository that also holds it.
+- [x] 3.10 Write `TestWorktreeRemoveBulk_RemovesAcrossTag`, asserting removal in all three tagged repositories and that the untagged repository's worktree survives.
+- [x] 3.11 Write `TestWorktreeRemoveTargets_PrecedenceTable` with a sub-case per row, asserting `remove` selects the same repository sets `add` does.
+- [x] 3.12 Write `TestWorktreeRemoveBulk_SkipsMissingBranch`: give one tagged repository no worktree for the branch and assert it is announced as a skip, the run returns nil, and the others are removed.
+- [x] 3.13 Write `TestWorktreeRemoveBulk_SingleMatchTagStillBulk`, the spec 26 regression: a tag matching exactly one repository that lacks the branch must skip and return nil, not error.
+- [x] 3.14 Write `TestWorktreeRemoveBulk_SummaryAndExit` over a mixed run, asserting the three counts appear and the sentinel is returned, with a sub-case asserting nil when only skips occurred.
+- [x] 3.15 Write `TestWorktreeRemoveBulk_NoRestore`: break a later repository, and assert earlier removals stay removed on disk and in the saved configuration.
+- [x] 3.16 Write `TestWorktreeRemoveBulk_SingleSave`: reload configuration from disk and assert every removal is reflected, guarding the overwriting-save failure mode.
 
-### [ ] 4.0 Dry Run and the Confirmation Gate
+### [x] 4.0 Dry Run and the Confirmation Gate
 
 Ensure nothing is deleted that the user has not seen, including when there is no terminal
 to ask on.
@@ -175,27 +175,27 @@ to ask on.
 
 #### 4.0 Tasks
 
-- [ ] 4.1 Define `type removalPlan struct { RepoName, Branch, Path string; Locked bool; LockReason string; Dirty bool }` and `func buildRemovalPlan(repos []*config.Repository, branch string, force bool) []removalPlan`, computing the full plan before anything is removed. One plan structure feeds the dry run, the confirmation prompt, and the real run, so the text a user approves is the text `--dry-run` shows.
-- [ ] 4.2 Detect the would-fail-dirty condition for the preview **without** removing anything, by checking whether the worktree has uncommitted or untracked changes. Reuse the existing status machinery in `internal/git` rather than adding a second cleanliness check, and mark the plan entry rather than failing.
-- [ ] 4.3 Add `func renderRemovalPlan(plans []removalPlan, force bool, w io.Writer)`: one block per worktree with repository name, branch, and path; annotations for `(locked: reason — will be skipped)` and `(has uncommitted changes — will fail without --force)`; a header line stating the `--force` posture; and a trailing count via `pluralize`. Follow `runWorktreeAlign`'s dry-run shape.
-- [ ] 4.4 Register `--dry-run` on the command. When set, render the plan and return **before** any removal, configuration save, or directory cleanup.
-- [ ] 4.5 Register `--yes`/`-y`. When a plan targets more than one worktree and `--yes` was not given, render the plan and prompt for confirmation before removing anything.
-- [ ] 4.6 Implement the prompt with `bufio.NewScanner(stdin)` following `navigate.go:210`, accepting `y`/`yes` case-insensitively; anything else declines. Declining returns nil — the user's answer is not an error.
-- [ ] 4.7 Gate the prompt on the **number of worktrees targeted**, not on `-t`. Per the spec's resolved question 1, a name pattern matching several repositories is gated exactly as a tag-scoped run is, while a single-worktree removal proceeds unprompted because git's own refusal already guards the destructive case.
-- [ ] 4.8 Add a stdin TTY check for the non-interactive contract: `term.IsTerminal(int(os.Stdin.Fd()))`, as `list.go:112` does for stdout. Expose it as an overridable package variable so tests can force either answer, following the `stdoutIsTerminalFunc` pattern in `cd.go:17`.
-- [ ] 4.9 When confirmation is required, `--yes` was absent, and stdin is not a terminal, return a non-zero error naming `--yes` and remove nothing. Do not read from the stream, and do not proceed unconfirmed.
-- [ ] 4.10 Make `--dry-run` take precedence over `--yes`, so the combination previews without removing.
-- [ ] 4.11 Create `cmd/omgitworks/worktree_remove_confirm_test.go` with fixtures for a multi-worktree plan, a locked worktree, and a dirty worktree.
-- [ ] 4.12 Write `TestWorktreeRemove_DryRunChangesNothing`: capture `config.json` bytes and the worktree directory listing before and after, asserting both are identical and the plan was printed.
-- [ ] 4.13 Write `TestWorktreeRemove_DryRunAnnotations`: assert the locked entry is marked as skipped, the dirty entry marked as would-fail-without-force, and the header states the force posture.
-- [ ] 4.14 Write `TestWorktreeRemove_ConfirmationGate`: feed `"n\n"` through the injected reader and assert nothing was removed and the result is nil; add a sub-case feeding `"y\n"` that proceeds.
-- [ ] 4.15 Write `TestWorktreeRemove_YesSkipsPrompt`: pass `--yes` with an **empty** reader and assert the removal proceeds, proving stdin was never consulted.
-- [ ] 4.16 Write `TestWorktreeRemove_NonInteractiveRefuses`: force the TTY check to false, omit `--yes`, and assert a non-zero error naming `--yes` with nothing removed.
-- [ ] 4.17 Write `TestWorktreeRemove_SingleNotPrompted`: a one-worktree plan with an empty reader must proceed without prompting.
-- [ ] 4.18 Write `TestWorktreeRemove_DryRunWithYes`, asserting the combination previews and removes nothing.
-- [ ] 4.19 Write `TestWorktreeRemove_PreviewMatchesRun`: render the plan, perform the real run, and assert every path listed in the preview is exactly the set that changed — the fidelity guarantee behind success metric 4.
+- [x] 4.1 Define `type removalPlan struct { RepoName, Branch, Path string; Locked bool; LockReason string; Dirty bool }` and `func buildRemovalPlan(repos []*config.Repository, branch string, force bool) []removalPlan`, computing the full plan before anything is removed. One plan structure feeds the dry run, the confirmation prompt, and the real run, so the text a user approves is the text `--dry-run` shows.
+- [x] 4.2 Detect the would-fail-dirty condition for the preview **without** removing anything, by checking whether the worktree has uncommitted or untracked changes. Reuse the existing status machinery in `internal/git` rather than adding a second cleanliness check, and mark the plan entry rather than failing.
+- [x] 4.3 Add `func renderRemovalPlan(plans []removalPlan, force bool, w io.Writer)`: one block per worktree with repository name, branch, and path; annotations for `(locked: reason — will be skipped)` and `(has uncommitted changes — will fail without --force)`; a header line stating the `--force` posture; and a trailing count via `pluralize`. Follow `runWorktreeAlign`'s dry-run shape.
+- [x] 4.4 Register `--dry-run` on the command. When set, render the plan and return **before** any removal, configuration save, or directory cleanup.
+- [x] 4.5 Register `--yes`/`-y`. When a plan targets more than one worktree and `--yes` was not given, render the plan and prompt for confirmation before removing anything.
+- [x] 4.6 Implement the prompt with `bufio.NewScanner(stdin)` following `navigate.go:210`, accepting `y`/`yes` case-insensitively; anything else declines. Declining returns nil — the user's answer is not an error.
+- [x] 4.7 Gate the prompt on the **number of worktrees targeted**, not on `-t`. Per the spec's resolved question 1, a name pattern matching several repositories is gated exactly as a tag-scoped run is, while a single-worktree removal proceeds unprompted because git's own refusal already guards the destructive case.
+- [x] 4.8 Add a stdin TTY check for the non-interactive contract: `term.IsTerminal(int(os.Stdin.Fd()))`, as `list.go:112` does for stdout. Expose it as an overridable package variable so tests can force either answer, following the `stdoutIsTerminalFunc` pattern in `cd.go:17`.
+- [x] 4.9 When confirmation is required, `--yes` was absent, and stdin is not a terminal, return a non-zero error naming `--yes` and remove nothing. Do not read from the stream, and do not proceed unconfirmed.
+- [x] 4.10 Make `--dry-run` take precedence over `--yes`, so the combination previews without removing.
+- [x] 4.11 Create `cmd/omgitworks/worktree_remove_confirm_test.go` with fixtures for a multi-worktree plan, a locked worktree, and a dirty worktree.
+- [x] 4.12 Write `TestWorktreeRemove_DryRunChangesNothing`: capture `config.json` bytes and the worktree directory listing before and after, asserting both are identical and the plan was printed.
+- [x] 4.13 Write `TestWorktreeRemove_DryRunAnnotations`: assert the locked entry is marked as skipped, the dirty entry marked as would-fail-without-force, and the header states the force posture.
+- [x] 4.14 Write `TestWorktreeRemove_ConfirmationGate`: feed `"n\n"` through the injected reader and assert nothing was removed and the result is nil; add a sub-case feeding `"y\n"` that proceeds.
+- [x] 4.15 Write `TestWorktreeRemove_YesSkipsPrompt`: pass `--yes` with an **empty** reader and assert the removal proceeds, proving stdin was never consulted.
+- [x] 4.16 Write `TestWorktreeRemove_NonInteractiveRefuses`: force the TTY check to false, omit `--yes`, and assert a non-zero error naming `--yes` with nothing removed.
+- [x] 4.17 Write `TestWorktreeRemove_SingleNotPrompted`: a one-worktree plan with an empty reader must proceed without prompting.
+- [x] 4.18 Write `TestWorktreeRemove_DryRunWithYes`, asserting the combination previews and removes nothing.
+- [x] 4.19 Write `TestWorktreeRemove_PreviewMatchesRun`: render the plan, perform the real run, and assert every path listed in the preview is exactly the set that changed — the fidelity guarantee behind success metric 4.
 
-### [ ] 5.0 Completion, Documentation, and the Full Gate
+### [x] 5.0 Completion, Documentation, and the Full Gate
 
 > **Scope note:** as in spec 26, this spec states no functional requirement for completion
 > or documentation. Included on the repository's convention that `docs/site/` moves with
@@ -211,14 +211,14 @@ to ask on.
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Add `func completeRemovableBranches(...)` in `worktree.go`, suggesting only branches that actually have worktrees in the targeted repository. Completing to a branch without a worktree could only ever produce an error.
-- [ ] 5.2 Register it as `worktreeRemoveCmd.ValidArgsFunction`, resolving the repository the same way `completeWorktreeAddArgs` does, and register `completeAllTags` for `--tag` via `RegisterFlagCompletionFunc`.
-- [ ] 5.3 Write `TestCompleteWorktreeRemove`, asserting only branches with worktrees are offered, that suggestions are prefix-filtered, and that the directive is `ShellCompDirectiveNoFileComp`.
-- [ ] 5.4 Add a `Remove Worktrees` section to `docs/site/commands-core.md` covering the signature, the `rm` alias, and tag-scoped removal.
-- [ ] 5.5 Document the safety model in that section: `--force` is required for uncommitted or untracked changes, locked worktrees are always skipped even with `--force`, branches are never deleted, and empty projects directories are cleaned up.
-- [ ] 5.6 Document `--dry-run`, `--yes`, the more-than-one-worktree confirmation rule, and the non-interactive requirement, with a worked dry-run example.
-- [ ] 5.7 Build and capture `omgw worktree remove --help`, checking it against the documentation and confirming the Aliases block shows `rm`.
-- [ ] 5.8 Run `make ci` and confirm exit 0, then capture the CLI transcripts named in the 1.0-4.0 proof artifacts against a scratch fixture workspace with isolated `XDG_CONFIG_HOME` and `XDG_DATA_HOME`. The spec's Security Considerations require transcripts not to reveal real workspace paths or unrelated repository names.
+- [x] 5.1 Add `func completeRemovableBranches(...)` in `worktree.go`, suggesting only branches that actually have worktrees in the targeted repository. Completing to a branch without a worktree could only ever produce an error.
+- [x] 5.2 Register it as `worktreeRemoveCmd.ValidArgsFunction`, resolving the repository the same way `completeWorktreeAddArgs` does, and register `completeAllTags` for `--tag` via `RegisterFlagCompletionFunc`.
+- [x] 5.3 Write `TestCompleteWorktreeRemove`, asserting only branches with worktrees are offered, that suggestions are prefix-filtered, and that the directive is `ShellCompDirectiveNoFileComp`.
+- [x] 5.4 Add a `Remove Worktrees` section to `docs/site/commands-core.md` covering the signature, the `rm` alias, and tag-scoped removal.
+- [x] 5.5 Document the safety model in that section: `--force` is required for uncommitted or untracked changes, locked worktrees are always skipped even with `--force`, branches are never deleted, and empty projects directories are cleaned up.
+- [x] 5.6 Document `--dry-run`, `--yes`, the more-than-one-worktree confirmation rule, and the non-interactive requirement, with a worked dry-run example.
+- [x] 5.7 Build and capture `omgw worktree remove --help`, checking it against the documentation and confirming the Aliases block shows `rm`.
+- [x] 5.8 Run `make ci` and confirm exit 0, then capture the CLI transcripts named in the 1.0-4.0 proof artifacts against a scratch fixture workspace with isolated `XDG_CONFIG_HOME` and `XDG_DATA_HOME`. The spec's Security Considerations require transcripts not to reveal real workspace paths or unrelated repository names.
 
 ## Requirement Coverage Map
 

@@ -77,7 +77,7 @@ func selectNames(t *testing.T, pattern, tag string) ([]string, error) {
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
-	repos, err := selectWorktreeAddTargets(cfg, pattern, tag)
+	repos, err := selectWorktreeTargets(cfg, pattern, tag)
 	if err != nil {
 		return nil, err
 	}

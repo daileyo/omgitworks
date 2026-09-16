@@ -17,7 +17,7 @@ func bulkAdd(t *testing.T, tag, branch string) (string, error) {
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
-	repos, err := selectWorktreeAddTargets(cfg, "", tag)
+	repos, err := selectWorktreeTargets(cfg, "", tag)
 	if err != nil {
 		t.Fatalf("selection failed: %v", err)
 	}

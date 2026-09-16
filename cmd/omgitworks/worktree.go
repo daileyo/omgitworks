@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -30,7 +31,8 @@ Subcommands:
   gws worktree navigate <branch>        # Navigate to a worktree by branch name
   gws worktree list [repo|.]            # List all worktrees (. means the current repo)
   gws worktree add [repo] <branch>      # Create a new worktree in the projects root
-  gws worktree align [repo|.]           # Move unaligned worktrees into the projects root`,
+  gws worktree align [repo|.]           # Move unaligned worktrees into the projects root
+  gws worktree remove [repo] <branch>   # Remove a worktree (alias: rm)`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 {
@@ -214,4 +216,137 @@ func completeAllTags(toComplete string) ([]string, cobra.ShellCompDirective) {
 		}
 	}
 	return tags, cobra.ShellCompDirectiveNoFileComp
+}
+
+// selectWorktreeTargets resolves the precedence table to a repository set.
+//
+// Detection is the lowest-precedence source: the resolver is consulted only when
+// neither a name pattern nor a tag narrows the selection.
+func selectWorktreeTargets(cfg *config.Config, pattern, tag string) ([]*config.Repository, error) {
+	switch {
+	case pattern != "" && tag != "":
+		// AND semantics, matching 'omgw tag add --repo X --path Y'. The
+		// ambiguity check deliberately does not apply here: narrowing a tagged
+		// group by name is a bulk operation over the intersection.
+		repos := filterByTag(selectByName(cfg, pattern), tag)
+		if len(repos) == 0 {
+			return nil, fmt.Errorf("no repository found matching '%s' and tagged '%s'", pattern, tag)
+		}
+		return repos, nil
+
+	case tag != "":
+		repos := filterByTag(allRepositories(cfg), tag)
+		if len(repos) == 0 {
+			return nil, fmt.Errorf("no repository found tagged '%s'", tag)
+		}
+		return repos, nil
+
+	case pattern != "":
+		repos := selectByName(cfg, pattern)
+		if len(repos) == 0 {
+			return nil, fmt.Errorf("no repository found matching '%s'", pattern)
+		}
+		// Without a tag to narrow it, an ambiguous pattern is still rejected.
+		if len(repos) > 1 {
+			return nil, fmt.Errorf("multiple repositories match '%s', narrow your query", pattern)
+		}
+		return repos, nil
+
+	default:
+		repo, err := repocontext.ResolveCurrent(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return []*config.Repository{repo}, nil
+	}
+}
+
+// allRepositories returns pointers to every tracked repository.
+func allRepositories(cfg *config.Config) []*config.Repository {
+	repos := make([]*config.Repository, 0, len(cfg.Repositories))
+	for i := range cfg.Repositories {
+		repos = append(repos, &cfg.Repositories[i])
+	}
+	return repos
+}
+
+// selectByName returns repositories whose name matches the pattern, using the
+// partial case-insensitive matching the command has always used.
+func selectByName(cfg *config.Config, pattern string) []*config.Repository {
+	var repos []*config.Repository
+	for i := range cfg.Repositories {
+		if filter.MatchesPattern(cfg.Repositories[i].Name, pattern) {
+			repos = append(repos, &cfg.Repositories[i])
+		}
+	}
+	return repos
+}
+
+// filterByTag keeps repositories carrying the tag, matched with the exact,
+// case-insensitive, wildcard-aware rule used for tags everywhere else.
+func filterByTag(repos []*config.Repository, tag string) []*config.Repository {
+	var kept []*config.Repository
+	for _, repo := range repos {
+		for _, t := range repo.Tags {
+			if filter.MatchesExact(t, tag) {
+				kept = append(kept, repo)
+				break
+			}
+		}
+	}
+	return kept
+}
+
+// singleTagValue returns the one value of a single-valued tag flag, rejecting
+// repetition. The flag is declared as a string slice precisely so a repeat is
+// detectable: a plain string would silently keep the last value.
+func singleTagValue(values []string, flagName string) (string, error) {
+	switch len(values) {
+	case 0:
+		return "", nil
+	case 1:
+		return values[0], nil
+	default:
+		return "", fmt.Errorf("%s accepts a single value, but was given %d times", flagName, len(values))
+	}
+}
+
+// completeRemovableBranches suggests only branches that actually have a
+// worktree in the targeted repository. Completing to a branch without one could
+// only ever produce an error.
+func completeRemovableBranches(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var repos []*config.Repository
+	switch len(args) {
+	case 0:
+		if repo, rErr := repocontext.ResolveCurrent(cfg); rErr == nil {
+			repos = []*config.Repository{repo}
+		} else {
+			// Outside a tracked repository the first argument is a repo name.
+			return completeRepoNames(toComplete)
+		}
+	case 1:
+		repos = findRepositories(cfg, args[0])
+	default:
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	seen := make(map[string]bool)
+	var branches []string
+	for _, repo := range repos {
+		for _, wt := range repo.Worktrees {
+			if wt.Branch == "" || seen[wt.Branch] {
+				continue
+			}
+			if strings.HasPrefix(strings.ToLower(wt.Branch), strings.ToLower(toComplete)) {
+				seen[wt.Branch] = true
+				branches = append(branches, wt.Branch)
+			}
+		}
+	}
+	return branches, cobra.ShellCompDirectiveNoFileComp
 }
