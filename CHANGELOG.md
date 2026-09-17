@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.3.0](https://github.com/daileyo/omgitworks/compare/v3.2.0...v3.3.0) (2026-09-17)
+
+
+### Features
+
+* **worktree:** add worktree remove with safety rails ([2f3c1ea](https://github.com/daileyo/omgitworks/commit/2f3c1ea92b5f59eaa36fe6bbe98a8a1383848bc0))
+
+
+### Bug Fixes
+
+* **shell:** pass worktree remove through the omgw function ([11adb2d](https://github.com/daileyo/omgitworks/commit/11adb2d08ea83ea41fd9e047b69a7b1f920eb87c))
+* **worktree:** contain cleanup and make the removal preview exact ([012483e](https://github.com/daileyo/omgitworks/commit/012483e3e8d01f9be4633e2a83825ec59ab4defd))
+
 ## [3.2.0](https://github.com/daileyo/omgitworks/compare/v3.1.0...v3.2.0) (2026-09-17)
 
 
