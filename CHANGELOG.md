@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.0](https://github.com/daileyo/omgitworks/compare/v3.1.0...v3.2.0) (2026-09-17)
+
+
+### Features
+
+* **worktree:** create worktrees across a tag ([ab9c1f4](https://github.com/daileyo/omgitworks/commit/ab9c1f481c8281cba36b532fa2ddaba275737229))
+
+
+### Bug Fixes
+
+* **worktree:** treat a single-match tag as a bulk run ([ab1c2fc](https://github.com/daileyo/omgitworks/commit/ab1c2fcdd84a808b540412b4326fa2fff31e1cda))
+
 ## [3.1.0](https://github.com/daileyo/omgitworks/compare/v3.0.4...v3.1.0) (2026-09-16)
 
 
