@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.4.0](https://github.com/daileyo/omgitworks/compare/v3.3.0...v3.4.0) (2026-09-17)
+
+
+### Features
+
+* **worktree:** add --dry-run to worktree refresh ([ddc62e4](https://github.com/daileyo/omgitworks/commit/ddc62e40827e3528131435130f4d26fd03d356a1))
+* **worktree:** add worktree refresh to re-sync worktrees ([7dfd1fd](https://github.com/daileyo/omgitworks/commit/7dfd1fd0dd6b30177f9b58dab2d7ea7b1a569002))
+* **worktree:** report changes made by worktree refresh ([cdceeb1](https://github.com/daileyo/omgitworks/commit/cdceeb1852f2e7d9eb76428b106e1aac980c2981))
+* **worktree:** target worktree refresh by repo, dot, or tag ([1b0b3d2](https://github.com/daileyo/omgitworks/commit/1b0b3d237139f8e6f2fcf0b733aff48391fc9b7e))
+
 ## [3.3.0](https://github.com/daileyo/omgitworks/compare/v3.2.0...v3.3.0) (2026-09-17)
 
 
