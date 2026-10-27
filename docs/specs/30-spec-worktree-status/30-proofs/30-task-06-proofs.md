@@ -32,7 +32,7 @@ The site documentation now describes worktree status. The `List Worktrees` subse
 
 ~~~text
 INFO    -  Cleaning site directory
-INFO    -  Building documentation to directory: /tmp/claude-1000/-home-daileyo-gws-omgitworks/1d6ed4c0-cf38-408a-bba7-83ad8c26034b/scratchpad/site-build
+INFO    -  Building documentation to directory: site
 INFO    -  Documentation built in 0.35 seconds
 ~~~
 
