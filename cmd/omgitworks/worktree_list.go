@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daileyo/omgitworks/internal/config"
+	"github.com/daileyo/omgitworks/internal/filter"
 	"github.com/daileyo/omgitworks/internal/git"
 )
 
@@ -33,7 +34,7 @@ is aligned (inside the projects root).
 Passing "." lists only the repository the current directory belongs to. Omitting
 the argument continues to list every tracked repository. The positional
 argument is always the repository, so a status filter value must be attached
-to its flag: -s=dirty, -sdirty, or --status=dirty.
+to its flag: -s=dirty or --status=dirty.
 
 Git status is opt-in and follows the same flag convention as "gws list":
   -s  (lowercase) = compact status icons after the branch name
@@ -54,7 +55,8 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// The positional is always the repository argument. It is never
 		// reassigned to a status flag the way list does, so a filter value
-		// must be attached: -s=dirty, -sdirty, or --status=dirty.
+		// must be attached: -s=dirty or --status=dirty. (A joined -sdirty is
+		// not accepted: pflag reads the trailing letters as more short flags.)
 		repoArg := ""
 		if len(args) == 1 {
 			repoArg = args[0]
@@ -96,7 +98,7 @@ type worktreeListOptions struct {
 // needsStatus reports whether git status has to be fetched at all. Without a
 // status flag no git command runs.
 func (o worktreeListOptions) needsStatus() bool {
-	return o.CompactStatus || o.ShowStatus
+	return o.CompactStatus || o.ShowStatus || o.FilterStatus != ""
 }
 
 // parseWorktreeListFlags reads cobra flag state into options.
@@ -193,6 +195,23 @@ func runWorktreeList(scope worktreeScope, opts worktreeListOptions, stdout io.Wr
 		var wait func()
 		statusMap, wait = fetchStatuses(paths, resolveWorkers(opts.Workers, cfg))
 		defer wait()
+	}
+
+	// Status filtering runs after repository scoping and before layout, using
+	// the same status text and pattern rule as list. A worktree with no
+	// readable status has empty text and never matches.
+	if opts.FilterStatus != "" {
+		var kept []worktreeListEntry
+		for _, e := range entries {
+			if filter.MatchesPattern(statusFilterText(statusMap[e.Path]), opts.FilterStatus) {
+				kept = append(kept, e)
+			}
+		}
+		entries = kept
+		if len(entries) == 0 {
+			printNoWorktrees(scope, stdout)
+			return nil
+		}
 	}
 
 	// Calculate column widths on visible text.

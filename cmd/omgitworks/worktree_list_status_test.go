@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/pflag"
+
 	"github.com/daileyo/omgitworks/internal/config"
 	"github.com/daileyo/omgitworks/internal/git"
 )
@@ -286,5 +288,155 @@ func TestWorktreeListHelp_StatusFlags(t *testing.T) {
 		if !strings.Contains(worktreeListCmd.Long, want) {
 			t.Errorf("help text should mention %q", want)
 		}
+	}
+}
+
+// addDirtyRepo adds a second tracked repository with one dirty worktree to
+// the saved config, for scope-then-filter tests.
+func addDirtyRepo(t *testing.T, name string) {
+	t.Helper()
+	base := t.TempDir()
+	repo := filepath.Join(base, name)
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitc(t, repo, "init", "-b", "main")
+	gitc(t, repo, "commit", "--allow-empty", "-m", "init")
+	wt := filepath.Join(base, "wt", "wip")
+	gitWorktreeAdd(t, repo, "wip", wt)
+	if err := os.WriteFile(filepath.Join(wt, "untracked.txt"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Repositories = append(cfg.Repositories, config.Repository{
+		Name: name, Path: repo, Worktrees: []config.Worktree{{Path: wt, Branch: "wip"}},
+	})
+	if err := config.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// resetWorktreeListFlags clears the command's flag state so ParseFlags can be
+// called repeatedly within one test and leaves it clean afterwards.
+func resetWorktreeListFlags(t *testing.T) {
+	t.Helper()
+	reset := func() {
+		worktreeListCmd.Flags().VisitAll(func(f *pflag.Flag) { f.Changed = false })
+		flagWTStatus, flagWTShowStatus, flagWTColor = "", "", "auto"
+	}
+	reset()
+	t.Cleanup(reset)
+}
+
+func TestWorktreeListStatus_FilterDirty(t *testing.T) {
+	newStatusFixture(t)
+	out := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true, FilterStatus: "dirty"})
+
+	rowFor(t, out, "dirty")
+	for _, absent := range []string{"clean", "ahead"} {
+		if strings.Contains(out, "fixture  "+absent) {
+			t.Errorf("filter dirty should drop the %s worktree:\n%s", absent, out)
+		}
+	}
+}
+
+func TestWorktreeListStatus_ShowAndFilterAhead(t *testing.T) {
+	newStatusFixture(t)
+	out := listWorktrees(t, worktreeScope{}, worktreeListOptions{ShowStatus: true, FilterStatus: "ahead"})
+
+	if !strings.Contains(strings.Split(out, "\n")[0], "STATUS") {
+		t.Errorf("-S=ahead should still show the STATUS column:\n%s", out)
+	}
+	rowFor(t, out, "ahead")
+	for _, absent := range []string{"clean", "dirty"} {
+		if strings.Contains(out, "fixture  "+absent) {
+			t.Errorf("filter ahead should drop the %s worktree:\n%s", absent, out)
+		}
+	}
+}
+
+func TestWorktreeListFlags_PositionalIsRepo(t *testing.T) {
+	resetWorktreeListFlags(t)
+	cases := []struct {
+		args   []string
+		filter string
+		rest   []string
+	}{
+		{[]string{"-s", "fixture"}, "", []string{"fixture"}},
+		{[]string{"-s=dirty"}, "dirty", nil},
+		{[]string{"--status=dirty"}, "dirty", nil},
+		{[]string{"fixture", "-S=ahead"}, "ahead", []string{"fixture"}},
+	}
+	for _, c := range cases {
+		resetWorktreeListFlags(t)
+		if err := worktreeListCmd.ParseFlags(c.args); err != nil {
+			t.Fatalf("%v: unexpected parse error: %v", c.args, err)
+		}
+		opts := parseWorktreeListFlags(worktreeListCmd)
+		if opts.FilterStatus != c.filter {
+			t.Errorf("%v: FilterStatus = %q, want %q", c.args, opts.FilterStatus, c.filter)
+		}
+		if !opts.CompactStatus && !opts.ShowStatus {
+			t.Errorf("%v: a status flag should turn status display on", c.args)
+		}
+		if got := worktreeListCmd.Flags().Args(); strings.Join(got, ",") != strings.Join(c.rest, ",") {
+			t.Errorf("%v: positional args = %v, want %v", c.args, got, c.rest)
+		}
+	}
+
+	// The joined short form is rejected, not silently misread, so the help
+	// text and docs can name only the = forms.
+	resetWorktreeListFlags(t)
+	if err := worktreeListCmd.ParseFlags([]string{"-sdirty"}); err == nil {
+		t.Error("-sdirty should be rejected: pflag reads the trailing letters as more short flags")
+	}
+}
+
+func TestWorktreeListStatus_ScopeThenFilter(t *testing.T) {
+	newStatusFixture(t)
+	addDirtyRepo(t, "other")
+
+	scoped := listWorktrees(t, worktreeScope{NamePattern: "fixture", Label: "fixture"},
+		worktreeListOptions{CompactStatus: true, FilterStatus: "dirty"})
+	rowFor(t, scoped, "dirty")
+	if strings.Contains(scoped, "other") {
+		t.Errorf("scope fixture should exclude the other repository:\n%s", scoped)
+	}
+
+	all := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true, FilterStatus: "dirty"})
+	if !strings.Contains(all, "other") || !strings.Contains(all, "wip") {
+		t.Errorf("unscoped filter should include the other repository's dirty worktree:\n%s", all)
+	}
+	if strings.Contains(all, "fixture  clean") {
+		t.Errorf("unscoped filter should still drop clean worktrees:\n%s", all)
+	}
+}
+
+func TestWorktreeListStatus_NoStatusExcluded(t *testing.T) {
+	gone := filepath.Join(t.TempDir(), "gone")
+	newStatusFixture(t, config.Worktree{Path: gone, Branch: "gone", Aligned: false})
+
+	out := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true, FilterStatus: "clean"})
+	rowFor(t, out, "clean")
+	if strings.Contains(out, "gone") {
+		t.Errorf("a worktree with no status must not match any filter:\n%s", out)
+	}
+}
+
+func TestWorktreeListStatus_FilterEmpty(t *testing.T) {
+	newStatusFixture(t)
+
+	scoped := listWorktrees(t, worktreeScope{NamePattern: "fixture", Label: "fixture"},
+		worktreeListOptions{CompactStatus: true, FilterStatus: "behind"})
+	if strings.TrimSpace(scoped) != "No worktrees found for 'fixture'" {
+		t.Errorf("scoped empty result should name the scope, got: %q", scoped)
+	}
+
+	all := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true, FilterStatus: "behind"})
+	if strings.TrimSpace(all) != "No worktrees found" {
+		t.Errorf("unscoped empty result should be the plain message, got: %q", all)
 	}
 }
