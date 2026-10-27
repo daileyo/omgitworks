@@ -22,23 +22,31 @@ var (
 )
 
 var userAssignCmd = &cobra.Command{
-	Use:   "assign <repository> <profile>",
+	Use:   "assign [repository] <profile>",
 	Short: "Assign a user profile to a repository",
 	Long: `Assign a user profile to a repository, setting user.name and user.email
 in the repository's local .git/config file.
 
-The repository can be specified by name (partial match) or path.
+The repository can be named explicitly (partial match on the name, or a
+path) or omitted. When omitted, the repository is determined from the
+current directory. This also works from inside one of that repository's
+worktrees, where the owning repository receives the identity, which git
+then shares with every worktree. Naming a repository explicitly always
+takes precedence over the current directory.
+
 The profile must exist (either stored or auto-detected).
 
 Options:
   --use-subdirs  Move the repository to a profile subdirectory and set up
-                 includeIf in ~/.gitconfig (advanced workflow)
+                 includeIf in ~/.gitconfig (advanced workflow). Requires an
+                 explicit repository argument.
   --dry-run      Preview changes without applying them
 
 Examples:
-  gws user assign my-project work         # Set work profile on my-project
-  gws user assign my-project personal     # Set personal profile
-  gws user assign my-project work --dry-run  # Preview changes`,
+  omgw user assign work                       # Repo from the current directory
+  omgw user assign my-project work            # Set work profile on my-project
+  omgw user assign my-project personal        # Set personal profile
+  omgw user assign my-project work --dry-run  # Preview changes`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: func(_ *cobra.Command, args []string) error {
 		opts := userAssignOptions{useSubdirs: assignUseSubdirs, dryRun: assignDryRun}
