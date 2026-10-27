@@ -325,7 +325,7 @@ func resetWorktreeListFlags(t *testing.T) {
 	t.Helper()
 	reset := func() {
 		worktreeListCmd.Flags().VisitAll(func(f *pflag.Flag) { f.Changed = false })
-		flagWTStatus, flagWTShowStatus, flagWTColor = "", "", "auto"
+		flagWTStatus, flagWTShowStatus, flagWTColor, flagWTWorkers = "", "", "auto", 0
 	}
 	reset()
 	t.Cleanup(reset)
@@ -438,5 +438,79 @@ func TestWorktreeListStatus_FilterEmpty(t *testing.T) {
 	all := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true, FilterStatus: "behind"})
 	if strings.TrimSpace(all) != "No worktrees found" {
 		t.Errorf("unscoped empty result should be the plain message, got: %q", all)
+	}
+}
+
+func TestWorktreeListStatus_CacheWritten(t *testing.T) {
+	f := newStatusFixture(t)
+	listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true})
+
+	cache := readCacheFile(t)
+	if cache == nil {
+		t.Fatal("expected the shared status cache file to be written")
+	}
+	for name, path := range map[string]string{"clean": f.Clean, "dirty": f.Dirty, "ahead": f.Ahead} {
+		entry := cache[path]
+		if entry == nil {
+			t.Errorf("cache should hold an entry keyed by the %s worktree path", name)
+			continue
+		}
+		if entry.LastChecked.IsZero() {
+			t.Errorf("cache entry for %s should carry a LastChecked time", name)
+		}
+		if entry.Branch != name {
+			t.Errorf("cache entry for %s should record its branch, got %q", name, entry.Branch)
+		}
+	}
+}
+
+func TestWorktreeListStatus_CacheHit(t *testing.T) {
+	newStatusFixture(t)
+	first := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true})
+
+	// With no git binary reachable, only a cache hit can produce icons; a
+	// miss would render a blank icon area.
+	t.Setenv("PATH", t.TempDir())
+	second := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true})
+
+	if second != first {
+		t.Errorf("a cache hit should reproduce the first output without git\nfirst:\n%s\nsecond:\n%s", first, second)
+	}
+	for _, branch := range []string{"clean", "dirty", "ahead"} {
+		if iconStart(rowFor(t, second, branch)) < 0 {
+			t.Errorf("row for %s lost its icons on the cached run", branch)
+		}
+	}
+}
+
+func TestWorktreeListWorkers_Resolution(t *testing.T) {
+	withPref := &config.Config{Preferences: &config.Preferences{StatusWorkers: 5}}
+	noPref := &config.Config{}
+
+	cases := []struct {
+		name string
+		flag int
+		cfg  *config.Config
+		want int
+	}{
+		{"flag wins over preference", 3, withPref, 3},
+		{"preference wins over default", 0, withPref, 5},
+		{"default is 8", 0, noPref, 8},
+	}
+	for _, c := range cases {
+		if got := resolveWorkers(c.flag, c.cfg); got != c.want {
+			t.Errorf("%s: resolveWorkers(%d) = %d, want %d", c.name, c.flag, got, c.want)
+		}
+	}
+
+	resetWorktreeListFlags(t)
+	if err := worktreeListCmd.ParseFlags([]string{"--workers", "3", "-s"}); err != nil {
+		t.Fatal(err)
+	}
+	if opts := parseWorktreeListFlags(worktreeListCmd); opts.Workers != 3 {
+		t.Errorf("--workers 3 should reach the options, got %d", opts.Workers)
+	}
+	if !helpListedFlags(t, worktreeListCmd)["workers"] {
+		t.Error("help should list --workers")
 	}
 }
