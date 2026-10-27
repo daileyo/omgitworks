@@ -172,7 +172,7 @@ Register `--workers N` on `worktree list`, resolved by `resolveWorkers` (flag, t
 - [x] 5.5 Verify the `list` flags are untouched: assert `flagWorkers` and `flagColor` in `list.go` are not read by any code path in `worktree_list.go` (grep in the proof file), so the two commands cannot clobber each other.
 - [x] 5.6 Produce `30-proofs/30-task-05-proofs.md` with the transcript of `time omgw worktree list -s` run twice against the fixture, noting the absence of the spinner on the second run, plus the grep and test output. Run `make ci`. Commit as `feat(worktree): share the status cache and workers with worktree list`.
 
-### [ ] 6.0 Document worktree status
+### [x] 6.0 Document worktree status
 
 Update the worktree management section of `docs/site/commands-core.md`: the `List Worktrees` subsection gains the flags, the filter terms, the attached-value rule, the renamed column, and new example output for `-s` and `-S`. Update the `status_workers` row of `docs/site/configuration.md` to mention `omgw worktree list --workers`. Update the `Subcommands` block in `worktree.go`'s `Long` if its one-line description of `list` needs it.
 
@@ -185,9 +185,9 @@ Update the worktree management section of `docs/site/commands-core.md`: the `Lis
 
 #### 6.0 Tasks
 
-- [ ] 6.1 In `docs/site/commands-core.md`, replace the `List Worktrees` subsection: usage line `omgw worktree list [repo|.] [flags]`, a short flags table (`--status`/`-s`, `--show-status`/`-S`, `--color`, `--workers`), the filter terms, a note that the positional is always the repository so filter values attach with `=`, and three example blocks for plain, `-s`, and `-S` output using `ALIGNED` with `yes`/`no`.
-- [ ] 6.2 Add a cross-reference from the `omgw list` `--status` row to the worktree section, one sentence, so readers of either page find the other.
-- [ ] 6.3 In `docs/site/configuration.md` line 123, extend the `status_workers` description to `omgw list --workers` or `omgw worktree list --workers`.
-- [ ] 6.4 In `worktree.go` line 32, extend the `list` line's comment to `List all worktrees, optionally with git status (-s/-S)` if it still fits the column; otherwise leave it and rely on the subcommand help.
-- [ ] 6.5 Run `mkdocs build --strict` from the repository root (install `docs/requirements.txt` into the existing `.venv` if needed) and confirm exit zero.
-- [ ] 6.6 Produce `30-proofs/30-task-06-proofs.md` with the `omgw worktree list --help` output beside the documentation examples and the `mkdocs` result. Commit as `docs(worktree): document worktree status`.
+- [x] 6.1 In `docs/site/commands-core.md`, replace the `List Worktrees` subsection: usage line `omgw worktree list [repo|.] [flags]`, a short flags table (`--status`/`-s`, `--show-status`/`-S`, `--color`, `--workers`), the filter terms, a note that the positional is always the repository so filter values attach with `=`, and three example blocks for plain, `-s`, and `-S` output using `ALIGNED` with `yes`/`no`.
+- [x] 6.2 Add a cross-reference from the `omgw list` `--status` row to the worktree section, one sentence, so readers of either page find the other.
+- [x] 6.3 In `docs/site/configuration.md` line 123, extend the `status_workers` description to `omgw list --workers` or `omgw worktree list --workers`.
+- [x] 6.4 In `worktree.go` line 32, extend the `list` line's comment to `List all worktrees, optionally with git status (-s/-S)` if it still fits the column; otherwise leave it and rely on the subcommand help.
+- [x] 6.5 Run `mkdocs build --strict` from the repository root (install `docs/requirements.txt` into the existing `.venv` if needed) and confirm exit zero.
+- [x] 6.6 Produce `30-proofs/30-task-06-proofs.md` with the `omgw worktree list --help` output beside the documentation examples and the `mkdocs` result. Commit as `docs(worktree): document worktree status`.

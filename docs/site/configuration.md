@@ -120,7 +120,7 @@ Each entry in the `worktrees` array represents a git worktree associated with a 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `status_workers` | integer | `8` | Number of concurrent workers for fetching git status. Also configurable per-invocation with `omgw list --workers`. |
+| `status_workers` | integer | `8` | Number of concurrent workers for fetching git status. Also configurable per-invocation with `omgw list --workers` or `omgw worktree list --workers`. |
 
 ## What is a "project"?
 
@@ -200,12 +200,12 @@ The old directory is removed only if the config was all it contained. If you kep
 else there, it is left alone and named in the output.
 
 **Your worktrees do not move on their own.** A worktree can hold uncommitted work, so omgw will
-never relocate one without being asked. Until you ask, existing worktrees report as
-`(unaligned)`:
+never relocate one without being asked. Until you ask, existing worktrees report `no` in
+the `ALIGNED` column:
 
 ```bash
 omgw worktree list
-# my-repo   feat-auth   /home/user/projects/my-repo.wt/feat-auth   (unaligned)
+# my-repo   feat-auth   /home/user/projects/my-repo.wt/feat-auth   no
 ```
 
 **This is expected, not an error.** "Aligned" now means "inside the projects root", so

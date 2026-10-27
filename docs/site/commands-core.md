@@ -78,7 +78,7 @@ For example:
 | `--visibility` | `-i` | Filter by visibility (exact match: `private`, `unknown`) |
 | `--tag` | `-t` | Filter by tag (exact match, single value) |
 | `--path` | `-p` | Filter by path pattern (partial match) |
-| `--status` | `-s` | Show compact status in name column, or filter by status pattern (partial match) |
+| `--status` | `-s` | Show compact status in name column, or filter by status pattern (partial match). Also available on [`omgw worktree list`](#worktree-status) |
 | `--show-user` | `-u` | Filter by user name (partial match) |
 | `--remote` | `-r` | Filter by remote URL pattern (partial match) |
 | `--remote-raw` | `-b` | Filter by raw remote URL pattern (partial match) |
@@ -459,7 +459,7 @@ repo you branch. See [Configuration](configuration.md#file-locations) for the fu
 ### List Worktrees
 
 ```
-omgw worktree list [repo|.]
+omgw worktree list [repo|.] [flags]
 ```
 
 List all git worktrees across tracked repositories. Optionally filter to a single repo, or to the current one with `.`.
@@ -480,14 +480,66 @@ Omitting the argument still means **all** repositories. Use `.` to scope to the 
 **Example output:**
 
 ```
-REPO          BRANCH        PATH                                        STATUS
-------------  ------------  ------------------------------------------  ----------
-my-repo       feat-auth     /home/user/.local/share/gws/projects/my-repo/feat-auth    aligned
-my-repo       fix-login     /home/user/.local/share/gws/projects/my-repo/fix-login    aligned
-other-repo    experiment    /tmp/other-experiment                        (unaligned)
+REPO        BRANCH      PATH                                                     ALIGNED
+----------  ----------  -------------------------------------------------------  -------
+my-repo     feat-auth   /home/user/.local/share/gws/projects/my-repo/feat-auth   yes
+my-repo     fix-login   /home/user/.local/share/gws/projects/my-repo/fix-login   yes
+other-repo  experiment  /tmp/other-experiment                                    no
 ```
 
-Worktrees inside the projects root are marked `aligned`. Worktrees elsewhere — including any still in a legacy `<repo>.wt/` directory — are marked `(unaligned)`.
+`ALIGNED` is `yes` for worktrees inside the projects root and `no` for worktrees elsewhere, including any still in a legacy `<repo>.wt/` directory.
+
+#### Worktree status
+
+Git status is opt-in and uses the same [flag convention](#flag-convention) and icons as `omgw list`: lowercase shows compact icons after the branch, uppercase adds a `STATUS` column, and a value on either flag also filters.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--status` | `-s` | Show compact status icons after the branch, or show and filter with `-s=<pattern>` |
+| `--show-status` | `-S` | Show a `STATUS` column, or show and filter with `-S=<pattern>` |
+| `--color` | | Color output: `auto`, `always`, `never` |
+| `--workers` | | Number of concurrent workers for status fetching (default: `8`, or the `status_workers` preference) |
+
+Filter terms are `clean`, `dirty`, `ahead`, and `behind`, matched as partial patterns. When both `-s` and `-S` are given, `-S` wins.
+
+!!! note "Filter values attach to the flag"
+    The positional argument of `omgw worktree list` is always the repository, so a filter value must be attached with `=`: `-s=dirty` or `--status=dirty`. Unlike `omgw list -s dirty`, writing `omgw worktree list -s dirty` would look for a repository named `dirty`.
+
+```bash
+# Compact status after each branch
+omgw worktree list . -s
+
+# Full STATUS column for one repo
+omgw worktree list my-repo -S
+
+# Only worktrees with uncommitted changes, across all repos
+omgw worktree list -s=dirty
+
+# Only my-repo worktrees that are ahead of origin
+omgw worktree list my-repo -S=ahead
+```
+
+**Compact status (`-s`):**
+
+```
+REPO     BRANCH        PATH                                               ALIGNED
+-------  ------------  -------------------------------------------------  -------
+my-repo  feat-auth  ✓  /home/user/.local/share/gws/projects/my-repo/feat-auth   yes
+my-repo  fix-login  ✗  /home/user/.local/share/gws/projects/my-repo/fix-login   yes
+my-repo  release ↑2 ✓  /home/user/.local/share/gws/projects/my-repo/release     yes
+```
+
+**Full status column (`-S`):**
+
+```
+REPO     BRANCH     PATH                                                     ALIGNED  STATUS
+-------  ---------  -------------------------------------------------------  -------  ------
+my-repo  feat-auth  /home/user/.local/share/gws/projects/my-repo/feat-auth   yes      ✓
+my-repo  fix-login  /home/user/.local/share/gws/projects/my-repo/fix-login   yes      ✗
+my-repo  release    /home/user/.local/share/gws/projects/my-repo/release     yes      ↑2 ✓
+```
+
+Icons are `↓n` behind, `↑n` ahead, `✓` clean, and `✗` dirty, colored on a terminal. A worktree whose directory is missing shows no icons and is dropped by any filter. Status is fetched through the same cache and worker pool as `omgw list -s`, so a run shortly after `omgw list -s` or a previous worktree listing is served from the cache.
 
 ### Add Worktree
 
