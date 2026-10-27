@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.6.0](https://github.com/daileyo/omgitworks/compare/v3.5.0...v3.6.0) (2026-10-27)
+
+
+### Features
+
+* **user:** show the signing format next to the SIGN mark ([7fc3fe0](https://github.com/daileyo/omgitworks/commit/7fc3fe04a2f698ee2cf279aed063e475232a6aea))
+* **worktree:** add the STATUS column to worktree list ([6fa505f](https://github.com/daileyo/omgitworks/commit/6fa505f825b40cb1ee92e36d3f7aa15c42c33400))
+* **worktree:** filter worktree list by status ([56df99d](https://github.com/daileyo/omgitworks/commit/56df99d06d9bee7b9987feeff40a8ce71c7ba69a))
+* **worktree:** share the status cache and workers ([1b0b589](https://github.com/daileyo/omgitworks/commit/1b0b58933fb83d00e84be8d37dc498dca5bc4d8e))
+* **worktree:** show compact status in worktree list ([81d16dd](https://github.com/daileyo/omgitworks/commit/81d16dd374972f42f3662ed7e444807e6ce593e8))
+
+
+### Bug Fixes
+
+* **user:** keep signing settings when syncing profiles ([99a27dc](https://github.com/daileyo/omgitworks/commit/99a27dc846997826e5c41e51c1289b7b4956a685))
+
 ## [3.5.0](https://github.com/daileyo/omgitworks/compare/v3.4.0...v3.5.0) (2026-10-27)
 
 
