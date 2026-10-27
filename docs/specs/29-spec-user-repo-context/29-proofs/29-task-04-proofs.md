@@ -95,7 +95,7 @@ python3 -m venv .venv && .venv/bin/pip install -q -r docs/requirements.txt
 125:omgw user assign [repository] <profile> [flags]
 
 INFO    -  Cleaning site directory
-INFO    -  Building documentation to directory: /home/daileyo/gws/omgitworks/site
+INFO    -  Building documentation to directory: <repo>/site
 INFO    -  Documentation built in 0.21 seconds
 mkdocs strict exit=0
 ```
