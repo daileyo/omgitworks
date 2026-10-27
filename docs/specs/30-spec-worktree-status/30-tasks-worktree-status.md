@@ -51,7 +51,7 @@ These findings come from reading the code on this branch and refine what the spe
 
 ## Tasks
 
-### [ ] 1.0 Extract the shared status pipeline out of `runList`
+### [x] 1.0 Extract the shared status pipeline out of `runList`
 
 Move the two-phase status fetch (load cache, serve fresh entries, fall back to stale, fetch the rest in parallel with a progress spinner, save, refresh stale entries in the background) into one helper that takes a list of paths and returns the status map plus a completion hook for the background prefetch. Convert `runList` to call it. This lands first so `worktree list` consumes the helper rather than copying sixty lines. Success metric 4 depends on this task alone.
 
@@ -64,15 +64,15 @@ Move the two-phase status fetch (load cache, serve fresh entries, fall back to s
 
 #### 1.0 Tasks
 
-- [ ] 1.1 Create `cmd/omgitworks/status_fetch.go` with `fetchStatuses(paths []string, workers int) (map[string]*git.Status, func())`. Move the body of `runList` from `statusCache = git.NewCache(...)` through the `PrefetchInBackground` call into it, keyed on `paths` instead of `filtered`. Return the status map and a `wait` function that blocks on the background `done` channel, or is a no-op when no background prefetch was started.
-- [ ] 1.2 Preserve the ordering in a comment at the top of the helper: fresh entries first, stale entries served immediately, uncached paths fetched in the foreground under a `git.Progress`, `Save` after the foreground fetch, and only then the background prefetch of stale entries.
-- [ ] 1.3 Replace the extracted block in `runList` with `statusMap, wait := fetchStatuses(repoPaths, workers)` followed by `defer wait()`. Keep `resolveWorkers` and the `repoPaths` loop in `runList`. Delete the now-unused local variables.
-- [ ] 1.4 Change `resolveColorEnabled(_ *cobra.Command) bool` to `resolveColorEnabled(mode string) bool` and update the one caller at `list.go:158` to pass `flagColor`. This removes the only package-global read that `worktree list` would otherwise inherit.
-- [ ] 1.5 Write `status_fetch_test.go` with a real git repository per case (`runGitIn` to init and commit) and `t.Setenv("HOME", t.TempDir())` so `git.GetCachePath()` lands in the temp dir. Case A: seed the cache file with a fresh entry for the path, set `PATH` to an empty directory, call the helper, assert the entry is returned, proving no git call was needed.
-- [ ] 1.6 Case B: seed a stale entry (`LastChecked` older than `git.DefaultTTL`). Assert the returned map holds the stale `LastChecked`, then call `wait()` and assert the cache file's entry now has a newer `LastChecked`, proving stale-then-refresh.
-- [ ] 1.7 Case C: no cache file. Assert the returned map holds a fetched status and that the cache file exists with that path before `wait()` is called, proving the foreground fetch and the save-before-background ordering.
-- [ ] 1.8 Run `go test ./cmd/omgitworks ./internal/git` and confirm every pre-existing test passes with no assertion edits. Run the grep from the proof artifact and confirm `FetchAll(` and `PrefetchInBackground` appear only in `status_fetch.go` outside tests.
-- [ ] 1.9 Run `make ci`. Commit as `refactor(list): extract the status fetch pipeline`.
+- [x] 1.1 Create `cmd/omgitworks/status_fetch.go` with `fetchStatuses(paths []string, workers int) (map[string]*git.Status, func())`. Move the body of `runList` from `statusCache = git.NewCache(...)` through the `PrefetchInBackground` call into it, keyed on `paths` instead of `filtered`. Return the status map and a `wait` function that blocks on the background `done` channel, or is a no-op when no background prefetch was started.
+- [x] 1.2 Preserve the ordering in a comment at the top of the helper: fresh entries first, stale entries served immediately, uncached paths fetched in the foreground under a `git.Progress`, `Save` after the foreground fetch, and only then the background prefetch of stale entries.
+- [x] 1.3 Replace the extracted block in `runList` with `statusMap, wait := fetchStatuses(repoPaths, workers)` followed by `defer wait()`. Keep `resolveWorkers` and the `repoPaths` loop in `runList`. Delete the now-unused local variables.
+- [x] 1.4 Change `resolveColorEnabled(_ *cobra.Command) bool` to `resolveColorEnabled(mode string) bool` and update the one caller at `list.go:158` to pass `flagColor`. This removes the only package-global read that `worktree list` would otherwise inherit.
+- [x] 1.5 Write `status_fetch_test.go` with a real git repository per case (`runGitIn` to init and commit) and `t.Setenv("HOME", t.TempDir())` so `git.GetCachePath()` lands in the temp dir. Case A: seed the cache file with a fresh entry for the path, set `PATH` to an empty directory, call the helper, assert the entry is returned, proving no git call was needed.
+- [x] 1.6 Case B: seed a stale entry (`LastChecked` older than `git.DefaultTTL`). Assert the returned map holds the stale `LastChecked`, then call `wait()` and assert the cache file's entry now has a newer `LastChecked`, proving stale-then-refresh.
+- [x] 1.7 Case C: no cache file. Assert the returned map holds a fetched status and that the cache file exists with that path before `wait()` is called, proving the foreground fetch and the save-before-background ordering.
+- [x] 1.8 Run `go test ./cmd/omgitworks ./internal/git` and confirm every pre-existing test passes with no assertion edits. Run the grep from the proof artifact and confirm `FetchAll(` and `PrefetchInBackground` appear only in `status_fetch.go` outside tests.
+- [x] 1.9 Run `make ci`. Commit as `refactor(list): extract the status fetch pipeline`.
 
 ### [ ] 2.0 Rename the alignment column and add compact status with `-s` and `--color`
 

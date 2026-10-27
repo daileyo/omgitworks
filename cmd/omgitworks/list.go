@@ -100,10 +100,12 @@ func truncateBranch(name string, maxLen int) string {
 	return string(runes[:maxLen-3]) + "..."
 }
 
-// resolveColorEnabled determines if color output should be enabled
-// based on the --color flag value and TTY detection.
-func resolveColorEnabled(_ *cobra.Command) bool {
-	switch flagColor {
+// resolveColorEnabled reports whether ANSI color should be emitted for the
+// given --color mode (auto, always, never), using TTY detection for auto. It
+// takes the value rather than reading a flag variable so that any command can
+// own its own --color flag.
+func resolveColorEnabled(mode string) bool {
+	switch mode {
 	case "always":
 		return true
 	case "never":
@@ -155,7 +157,7 @@ Examples:
 			}
 		}
 		opts := parseDualPurposeFlags(cmd)
-		opts.ColorEnabled = resolveColorEnabled(cmd)
+		opts.ColorEnabled = resolveColorEnabled(flagColor)
 		return runList(opts)
 	},
 }
@@ -440,71 +442,18 @@ func runList(opts ListOptions) error {
 		return nil
 	}
 
-	// Load git status cache and pre-fetch all statuses in parallel
-	var statusCache *git.Cache
+	// Fetch git status through the shared pipeline when a status column or
+	// compact status was requested.
 	var statusMap map[string]*git.Status
-	var repoPaths []string
-	var workers int
-	var cachePath string
-	needsStatus := opts.ShowStatus || opts.CompactStatus
-	if needsStatus {
-		statusCache = git.NewCache(git.DefaultTTL)
-		if cp, err := git.GetCachePath(); err == nil {
-			cachePath = cp
-			_ = statusCache.Load(cachePath)
-		}
-
-		// Collect repo paths
-		workers = resolveWorkers(opts.Workers, cfg)
-		repoPaths = make([]string, len(filtered))
+	if opts.ShowStatus || opts.CompactStatus {
+		workers := resolveWorkers(opts.Workers, cfg)
+		repoPaths := make([]string, len(filtered))
 		for i, repo := range filtered {
 			repoPaths[i] = repo.Path
 		}
-
-		// Two-phase approach:
-		// Phase 1: Build display map from fresh cache + stale fallback
-		statusMap = make(map[string]*git.Status, len(repoPaths))
-		needsFetch := false
-		for _, p := range repoPaths {
-			if s := statusCache.Get(p); s != nil {
-				statusMap[p] = s
-			} else if s := statusCache.GetStale(p); s != nil {
-				statusMap[p] = s
-				needsFetch = true
-			} else {
-				needsFetch = true
-			}
-		}
-
-		// If any repos need fresh data and we have no stale data for them,
-		// we must fetch now to have something to display
-		var uncached []string
-		for _, p := range repoPaths {
-			if statusMap[p] == nil {
-				uncached = append(uncached, p)
-			}
-		}
-		if len(uncached) > 0 {
-			// Show progress spinner for foreground fetching
-			progress := git.NewProgress(len(uncached))
-			progress.Start()
-			freshResults := statusCache.FetchAll(uncached, workers, progress)
-			progress.Stop()
-			for p, s := range freshResults {
-				statusMap[p] = s
-			}
-		}
-
-		// Save cache after foreground fetching
-		if cachePath != "" {
-			_ = statusCache.Save(cachePath)
-		}
-
-		// Phase 2: Background prefetch for stale entries
-		if needsFetch {
-			done := statusCache.PrefetchInBackground(repoPaths, workers, cachePath)
-			defer func() { <-done }() // wait for background prefetch before exit
-		}
+		var wait func()
+		statusMap, wait = fetchStatuses(repoPaths, workers)
+		defer wait() // let the background prefetch finish before exit
 	}
 
 	// Apply status filter (post-fetch since status data isn't available during initial filtering)
