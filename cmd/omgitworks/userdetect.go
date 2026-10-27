@@ -65,49 +65,68 @@ func detectUserForRepos(repos []config.Repository, profiles ...[]config.Profile)
 // syncProfilesFromRepos scans repos for unique user identities and adds any
 // that don't already exist as profiles to cfg.Profiles. This ensures the
 // profile list reflects all users that are in use across repos.
+//
+// Identities are collected from three places, each carrying the signing
+// configuration git reports for it: includeIf config files, the global default
+// identity, and the identity in effect for each repository. A profile that
+// already exists for an identity's email is kept, but its signing key and
+// sign-commits setting are filled in when the profile has none and the
+// detected identity does.
 func syncProfilesFromRepos(cfg *config.Config) {
-	// Build set of existing profile emails for dedup
-	existingEmails := make(map[string]bool)
-	for _, p := range cfg.Profiles {
-		existingEmails[strings.ToLower(p.Email)] = true
-	}
-
-	// Also collect from auto-detected profiles (includeIf)
+	// Collect from auto-detected profiles (includeIf); these keep their
+	// derived profile names.
 	detected, _ := user.DetectProfiles()
 	for _, p := range detected {
-		if existingEmails[strings.ToLower(p.Email)] {
+		if existing := findProfileByEmail(cfg.Profiles, p.Email); existing != nil {
+			backfillProfileSigning(existing, p.SigningKey, p.SignCommits)
 			continue
 		}
-		existingEmails[strings.ToLower(p.Email)] = true
 		cfg.Profiles = append(cfg.Profiles, p)
 	}
 
-	// Collect unique users from repos (stored config + live local config)
 	type userIdentity struct {
-		name  string
-		email string
+		name        string
+		email       string
+		signingKey  string
+		signCommits bool
 	}
 	var identities []userIdentity
 
+	// The identity git uses outside any repository.
+	if global, err := git.GetGlobalDefaultUser(); err == nil && global != nil && global.Email != "" {
+		identities = append(identities, userIdentity{global.Name, global.Email, global.SigningKey, global.SignCommits})
+	}
+
+	// Collect unique users from repos (stored config + live local config)
 	for _, repo := range cfg.Repositories {
-		// Add the stored (global/includeIf) identity
+		liveCfg, err := git.GetUserConfig(repo.Path)
+		if err != nil {
+			liveCfg = nil
+		}
+
+		// Add the stored (global/includeIf) identity. The signing key is not
+		// stored on the repo, so take it from the live config when that is the
+		// same identity.
 		if repo.Email != "" {
-			identities = append(identities, userIdentity{repo.User, repo.Email})
+			id := userIdentity{name: repo.User, email: repo.Email, signCommits: repo.SigningEnabled}
+			if liveCfg != nil && liveCfg.Source != config.UserSourceLocal && strings.EqualFold(liveCfg.Email, repo.Email) {
+				id.signingKey = liveCfg.SigningKey
+				id.signCommits = id.signCommits || liveCfg.SignCommits
+			}
+			identities = append(identities, id)
 		}
 
 		// Also check live local config (detectUserForRepos skips persisting these)
-		liveCfg, err := git.GetUserConfig(repo.Path)
-		if err == nil && liveCfg != nil && liveCfg.Source == config.UserSourceLocal && liveCfg.Email != "" {
-			identities = append(identities, userIdentity{liveCfg.Name, liveCfg.Email})
+		if liveCfg != nil && liveCfg.Source == config.UserSourceLocal && liveCfg.Email != "" {
+			identities = append(identities, userIdentity{liveCfg.Name, liveCfg.Email, liveCfg.SigningKey, liveCfg.SignCommits})
 		}
 	}
 
 	for _, id := range identities {
-		emailLower := strings.ToLower(id.email)
-		if existingEmails[emailLower] {
+		if existing := findProfileByEmail(cfg.Profiles, id.email); existing != nil {
+			backfillProfileSigning(existing, id.signingKey, id.signCommits)
 			continue
 		}
-		existingEmails[emailLower] = true
 
 		// Derive profile name from git name (lowercase, spaces to hyphens)
 		name := strings.ToLower(id.name)
@@ -126,11 +145,40 @@ func syncProfilesFromRepos(cfg *config.Config) {
 		}
 
 		cfg.Profiles = append(cfg.Profiles, config.Profile{
-			Name:    name,
-			GitName: id.name,
-			Email:   id.email,
+			Name:        name,
+			GitName:     id.name,
+			Email:       id.email,
+			SigningKey:  id.signingKey,
+			SignCommits: id.signCommits,
 		})
 	}
+}
+
+// findProfileByEmail returns the stored profile with the given email, ignoring
+// case, or nil when there is none.
+func findProfileByEmail(profiles []config.Profile, email string) *config.Profile {
+	for i := range profiles {
+		if strings.EqualFold(profiles[i].Email, email) {
+			return &profiles[i]
+		}
+	}
+	return nil
+}
+
+// backfillProfileSigning fills in signing settings a profile is missing from
+// what git reports for the same identity. Values already on the profile are
+// never replaced, so explicit choices made with user update are kept.
+func backfillProfileSigning(profile *config.Profile, signingKey string, signCommits bool) bool {
+	changed := false
+	if profile.SigningKey == "" && signingKey != "" {
+		profile.SigningKey = signingKey
+		changed = true
+	}
+	if !profile.SignCommits && signCommits {
+		profile.SignCommits = true
+		changed = true
+	}
+	return changed
 }
 
 // warnMissingEmail reports repositories whose git identity has a name but no
