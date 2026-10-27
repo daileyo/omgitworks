@@ -126,7 +126,7 @@ Register `-S/--show-status` (sentinel-valued). When present, add a `STATUS` colu
 - [x] 3.7 `TestWorktreeListHelp_StatusFlags`: use `helpListedFlags(t, worktreeListCmd)` to assert `status`, `show-status`, `color` are listed, and assert `worktreeListCmd.Long` contains `clean`, `dirty`, `ahead`, `behind`, and `-s=dirty`.
 - [x] 3.8 Produce `30-proofs/30-task-03-proofs.md` with transcripts of `omgw worktree list . -S`, `omgw worktree list . -s -S`, and `omgw worktree list --help`. Run `make ci`. Commit as `feat(worktree): add the STATUS column to worktree list`.
 
-### [ ] 4.0 Filter worktrees by status and keep the positional as the repository
+### [x] 4.0 Filter worktrees by status and keep the positional as the repository
 
 Give `-s=<pattern>`, `--status=<pattern>`, `-S=<pattern>`, and `--show-status=<pattern>` show-and-filter semantics using `statusFilterText` and `filter.MatchesPattern`. Filtering runs after repository scoping. Worktrees with no readable status never match. The positional argument is always the repository: `omgw worktree list -s my-repo` scopes to `my-repo` with compact status. An empty result prints the existing no-worktrees message with the scope label and exits zero.
 
@@ -142,15 +142,15 @@ Give `-s=<pattern>`, `--status=<pattern>`, `-S=<pattern>`, and `--show-status=<p
 
 #### 4.0 Tasks
 
-- [ ] 4.1 In `runWorktreeList`, after the status fetch and before width calculation, when `opts.FilterStatus != ""` keep only entries where `filter.MatchesPattern(statusFilterText(statusMap[e.Path]), opts.FilterStatus)`; `statusFilterText(nil)` returns `""`, which excludes worktrees with no status.
-- [ ] 4.2 Move the existing empty-result check after the filter so a filtered-to-nothing result prints `No worktrees found for '<label>'` or `No worktrees found` and returns nil.
-- [ ] 4.3 Confirm in `RunE` that `args[0]` is passed to `worktreeScopeFor` unchanged and that nothing inspects it as a filter value. Add a comment pointing at the spec's attached-value rule.
-- [ ] 4.4 Tests: `TestWorktreeListStatus_FilterDirty` with `FilterStatus: "dirty", CompactStatus: true` asserts only the `dirty` row. `TestWorktreeListStatus_ShowAndFilterAhead` with `FilterStatus: "ahead", ShowStatus: true` asserts only the `ahead` row and the `STATUS` header.
-- [ ] 4.5 `TestWorktreeListFlags_PositionalIsRepo`: set `os.Args` or call `worktreeListCmd.ParseFlags([]string{"-s", "fixture"})`, then assert `parseWorktreeListFlags` yields `CompactStatus: true, FilterStatus: ""` and the remaining positional is `fixture`. Also assert `ParseFlags([]string{"-s=dirty"})` yields `FilterStatus: "dirty"`, and `ParseFlags([]string{"-sdirty"})` the same.
-- [ ] 4.6 `TestWorktreeListStatus_ScopeThenFilter`: two repositories in config, each with a dirty worktree; scope `worktreeScope{NamePattern: "fixture"}` plus `FilterStatus: "dirty"` lists only the first repository's dirty worktree.
-- [ ] 4.7 `TestWorktreeListStatus_NoStatusExcluded`: with the missing-path entry from 2.10 and `FilterStatus: "clean"`, assert its row is absent while `clean` remains.
-- [ ] 4.8 `TestWorktreeListStatus_FilterEmpty`: `FilterStatus: "behind"` against the fixture prints `No worktrees found for 'fixture'` when scoped and `No worktrees found` when not, with nil error.
-- [ ] 4.9 Produce `30-proofs/30-task-04-proofs.md` with a transcript of `omgw worktree list -s=dirty` across a two-repository scratch workspace and `omgw worktree list -s fixture`. Run `make ci`. Commit as `feat(worktree): filter worktree list by status`.
+- [x] 4.1 In `runWorktreeList`, after the status fetch and before width calculation, when `opts.FilterStatus != ""` keep only entries where `filter.MatchesPattern(statusFilterText(statusMap[e.Path]), opts.FilterStatus)`; `statusFilterText(nil)` returns `""`, which excludes worktrees with no status.
+- [x] 4.2 Move the existing empty-result check after the filter so a filtered-to-nothing result prints `No worktrees found for '<label>'` or `No worktrees found` and returns nil.
+- [x] 4.3 Confirm in `RunE` that `args[0]` is passed to `worktreeScopeFor` unchanged and that nothing inspects it as a filter value. Add a comment pointing at the spec's attached-value rule.
+- [x] 4.4 Tests: `TestWorktreeListStatus_FilterDirty` with `FilterStatus: "dirty", CompactStatus: true` asserts only the `dirty` row. `TestWorktreeListStatus_ShowAndFilterAhead` with `FilterStatus: "ahead", ShowStatus: true` asserts only the `ahead` row and the `STATUS` header.
+- [x] 4.5 `TestWorktreeListFlags_PositionalIsRepo`: set `os.Args` or call `worktreeListCmd.ParseFlags([]string{"-s", "fixture"})`, then assert `parseWorktreeListFlags` yields `CompactStatus: true, FilterStatus: ""` and the remaining positional is `fixture`. Also assert `ParseFlags([]string{"-s=dirty"})` and `--status=dirty` yield `FilterStatus: "dirty"`. *Amended during implementation:* `-sdirty` is rejected by pflag (trailing letters become further short flags), so the test pins the rejection instead and the spec, help, and docs name only the `=` forms.
+- [x] 4.6 `TestWorktreeListStatus_ScopeThenFilter`: two repositories in config, each with a dirty worktree; scope `worktreeScope{NamePattern: "fixture"}` plus `FilterStatus: "dirty"` lists only the first repository's dirty worktree.
+- [x] 4.7 `TestWorktreeListStatus_NoStatusExcluded`: with the missing-path entry from 2.10 and `FilterStatus: "clean"`, assert its row is absent while `clean` remains.
+- [x] 4.8 `TestWorktreeListStatus_FilterEmpty`: `FilterStatus: "behind"` against the fixture prints `No worktrees found for 'fixture'` when scoped and `No worktrees found` when not, with nil error.
+- [x] 4.9 Produce `30-proofs/30-task-04-proofs.md` with a transcript of `omgw worktree list -s=dirty` across a two-repository scratch workspace and `omgw worktree list -s fixture`. Run `make ci`. Commit as `feat(worktree): filter worktree list by status`.
 
 ### [ ] 5.0 Share the cache and honor `--workers`
 
