@@ -33,6 +33,13 @@ omgw user list
 
 List all stored and auto-detected user profiles.
 
+Profiles are created and kept up to date by `omgw init`, `omgw add`, and `omgw refresh`
+from the identities git reports: `includeIf` config files, the global default identity,
+and the identity in effect for each tracked repository. Each profile carries the signing
+key and `commit.gpgsign` setting git uses with that identity. A stored profile that is
+missing signing settings is filled in on the next sync; settings already on a profile
+are never replaced.
+
 **Example output:**
 
 ```
