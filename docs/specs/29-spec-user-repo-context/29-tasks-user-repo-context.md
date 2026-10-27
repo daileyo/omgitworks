@@ -122,7 +122,7 @@ Implement spec Unit 1. When the repository argument is absent, resolve it with `
 - [x] 2.16 Produce the two transcripts. Under a temporary `HOME` (and `XDG_CONFIG_HOME` / `XDG_DATA_HOME` unset), `make build`, `omgw init` a scratch workspace, `omgw user add work --email work@example.com --name Worker` and the same for `personal`, then record the commands and output for `29-proofs/assign-current-repo.md` (`cd <repo> && omgw user assign work && git config --local user.email`) and `29-proofs/assign-from-worktree.md` (`omgw worktree add feat-x`, `cd` into it, `omgw user assign personal`, then `git -C <main checkout> config --local user.email`). Scrub the temporary paths to `<tmp>`. *As built:* the worktree transcript also records the failure and preview cases (resolver error, both `--use-subdirs` refusals, one-argument dry run), and notes that cobra prints usage after runtime errors because `assign` never set `SilenceUsage`; left unchanged as pre-existing behavior.
 - [x] 2.17 Run `make ci`. Commit as `feat(user): resolve the repository for assign from the current directory`.
 
-### [ ] 3.0 Add context-aware tab completion for both argument positions
+### [x] 3.0 Add context-aware tab completion for both argument positions
 
 Implement the completion requirements of spec Unit 2. Attach a `completeUserAssignArgs` function modelled on `completeWorktreeAddArgs`: with no arguments typed, complete profile names when the working directory resolves and repository names otherwise; with one argument typed, complete profile names; otherwise nothing.
 
@@ -136,15 +136,15 @@ Implement the completion requirements of spec Unit 2. Attach a `completeUserAssi
 
 #### 3.0 Tasks
 
-- [ ] 3.1 Add `func completeUserAssignArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)` to `user_assign.go`. Load config; on error return `nil, cobra.ShellCompDirectiveNoFileComp`. `switch len(args)`: `case 0`: if `repocontext.ResolveCurrent(cfg)` succeeds return `completeProfileNames(toComplete)`, else `completeRepoNames(toComplete)`; `case 1`: return `completeProfileNames(toComplete)`; `default`: `nil, cobra.ShellCompDirectiveNoFileComp`.
-- [ ] 3.2 In `user_assign.go`'s `init()`, set `userAssignCmd.ValidArgsFunction = completeUserAssignArgs`.
-- [ ] 3.3 Create `cmd/omgitworks/user_assign_completion_test.go`. Reuse `setupAssignFixture(t, "alpha", "beta")`, whose profile names (`work`, `personal`) and repository names do not overlap, so each assertion can check the returned set exactly.
-- [ ] 3.4 Write `TestCompleteUserAssign_ProfilesWhenResolved`: `chdirForTest` into `alpha`; call with `nil` args and `""`; assert the result equals `{work, personal}` in any order and contains neither repository name.
-- [ ] 3.5 Write `TestCompleteUserAssign_ReposWhenNotResolved`: `chdirForTest(t, t.TempDir())`; same call; assert the result equals `{alpha, beta}` and contains neither profile name.
-- [ ] 3.6 Write `TestCompleteUserAssign_ProfilesForSecondArg`: from the untracked directory, call with `[]string{"alpha"}`; assert `{work, personal}`.
-- [ ] 3.7 Write `TestCompleteUserAssign_NothingAfterTwoArgs`: call with `[]string{"alpha", "work"}`; assert empty result and `cobra.ShellCompDirectiveNoFileComp`.
-- [ ] 3.8 Capture `29-proofs/completion.md` using the scratch workspace from 2.16: `omgw __complete user assign ""` from inside a repository and from an untracked directory, plus `omgw __complete user assign alpha ""`.
-- [ ] 3.9 Run `make ci`. Commit as `feat(user): complete assign arguments by context`.
+- [x] 3.1 Add `func completeUserAssignArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)` to `user_assign.go`. Load config; on error return `nil, cobra.ShellCompDirectiveNoFileComp`. `switch len(args)`: `case 0`: if `repocontext.ResolveCurrent(cfg)` succeeds return `completeProfileNames(toComplete)`, else `completeRepoNames(toComplete)`; `case 1`: return `completeProfileNames(toComplete)`; `default`: `nil, cobra.ShellCompDirectiveNoFileComp`.
+- [x] 3.2 In `user_assign.go`'s `init()`, set `userAssignCmd.ValidArgsFunction = completeUserAssignArgs`.
+- [x] 3.3 Create `cmd/omgitworks/user_assign_completion_test.go`. Reuse `setupAssignFixture(t, "alpha", "beta")`, whose profile names (`work`, `personal`) and repository names do not overlap, so each assertion can check the returned set exactly.
+- [x] 3.4 Write `TestCompleteUserAssign_ProfilesWhenResolved`: `chdirForTest` into `alpha`; call with `nil` args and `""`; assert the result equals `{work, personal}` in any order and contains neither repository name.
+- [x] 3.5 Write `TestCompleteUserAssign_ReposWhenNotResolved`: `chdirForTest(t, t.TempDir())`; same call; assert the result equals `{alpha, beta}` and contains neither profile name.
+- [x] 3.6 Write `TestCompleteUserAssign_ProfilesForSecondArg`: from the untracked directory, call with `[]string{"alpha"}`; assert `{work, personal}`. *As built:* also asserts the prefix filter, `w` completing to `work` only.
+- [x] 3.7 Write `TestCompleteUserAssign_NothingAfterTwoArgs`: call with `[]string{"alpha", "work"}`; assert empty result and `cobra.ShellCompDirectiveNoFileComp`.
+- [x] 3.8 Capture `29-proofs/completion.md` using the scratch workspace from 2.16: `omgw __complete user assign ""` from inside a repository and from an untracked directory, plus `omgw __complete user assign alpha ""`.
+- [x] 3.9 Run `make ci`. Commit as `feat(user): complete assign arguments by context`.
 
 ### [ ] 4.0 Rewrite the `assign` and `user` help text and update the published docs
 

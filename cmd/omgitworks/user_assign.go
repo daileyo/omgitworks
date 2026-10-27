@@ -49,6 +49,30 @@ Examples:
 func init() {
 	userAssignCmd.Flags().BoolVar(&assignUseSubdirs, "use-subdirs", false, "Move repository to profile subdirectory")
 	userAssignCmd.Flags().BoolVar(&assignDryRun, "dry-run", false, "Preview changes without applying")
+	userAssignCmd.ValidArgsFunction = completeUserAssignArgs
+}
+
+// completeUserAssignArgs follows the same rule as the one-argument form:
+// inside a tracked repository the first argument is expected to be a profile,
+// outside one it is expected to be a repository. Once a repository has been
+// typed, the second argument is always a profile.
+func completeUserAssignArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	switch len(args) {
+	case 0:
+		if _, err := repocontext.ResolveCurrent(cfg); err == nil {
+			return completeProfileNames(toComplete)
+		}
+		return completeRepoNames(toComplete)
+	case 1:
+		return completeProfileNames(toComplete)
+	default:
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 }
 
 // userAssignOptions carries the assign flags so runUserAssign can be called
