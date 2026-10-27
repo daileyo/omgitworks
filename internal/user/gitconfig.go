@@ -29,11 +29,12 @@ func ParseIncludedConfig(includeIf IncludeIf) (*config.Profile, error) {
 	}
 
 	return &config.Profile{
-		Name:        deriveProfileName(includeIf),
-		GitName:     userCfg.Name,
-		Email:       userCfg.Email,
-		SigningKey:  userCfg.SigningKey,
-		SignCommits: userCfg.SignCommits,
+		Name:          deriveProfileName(includeIf),
+		GitName:       userCfg.Name,
+		Email:         userCfg.Email,
+		SigningKey:    userCfg.SigningKey,
+		SignCommits:   userCfg.SignCommits,
+		SigningFormat: userCfg.SigningFormat,
 	}, nil
 }
 

@@ -57,11 +57,12 @@ const (
 
 // Profile represents a git user profile with identity and signing configuration
 type Profile struct {
-	Name        string `json:"name"`                   // Profile identifier (e.g., "work", "personal")
-	GitName     string `json:"git_name"`               // user.name value
-	Email       string `json:"email"`                  // user.email value
-	SigningKey  string `json:"signing_key,omitempty"`  // user.signingkey value (optional)
-	SignCommits bool   `json:"sign_commits,omitempty"` // commit.gpgsign setting
+	Name          string `json:"name"`                     // Profile identifier (e.g., "work", "personal")
+	GitName       string `json:"git_name"`                 // user.name value
+	Email         string `json:"email"`                    // user.email value
+	SigningKey    string `json:"signing_key,omitempty"`    // user.signingkey value (optional)
+	SignCommits   bool   `json:"sign_commits,omitempty"`   // commit.gpgsign setting
+	SigningFormat string `json:"signing_format,omitempty"` // gpg.format value (ssh, openpgp, x509); empty means git's default
 }
 
 // Worktree represents a git worktree associated with a repository

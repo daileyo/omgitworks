@@ -40,6 +40,10 @@ key and `commit.gpgsign` setting git uses with that identity. A stored profile t
 missing signing settings is filled in on the next sync; settings already on a profile
 are never replaced.
 
+The `SIGN` column shows a check for profiles whose commits are signed, followed by the
+signing mechanism git uses: `ssh`, `gpg` (OpenPGP, git's default when `gpg.format` is
+unset), or `x509`.
+
 **Example output:**
 
 ```
@@ -47,8 +51,8 @@ Stored Profiles:
 
   NAME        GIT NAME     EMAIL                    SIGN
   ----        --------     -----                    ----
-  personal    Jane Doe     jane@personal.dev        ABC123 (signing on)
-  work        Jane Doe     jane.doe@company.com     —
+  personal    Jane Doe     jane@personal.dev        ✓ (ssh)
+  work        Jane Doe     jane.doe@company.com
 
 Auto-Detected Profiles:
 
