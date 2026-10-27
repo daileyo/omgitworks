@@ -93,7 +93,7 @@ func TestRunWorktreeList_NoArgListsAllRepos(t *testing.T) {
 	setupScopeFixture(t, "repo-a", "repo-b")
 
 	var buf bytes.Buffer
-	if err := runWorktreeList(worktreeScope{}, &buf); err != nil {
+	if err := runWorktreeList(worktreeScope{}, worktreeListOptions{}, &buf); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -111,7 +111,7 @@ func TestRunWorktreeList_DotScopesToCurrentRepo(t *testing.T) {
 	chdirForTest(t, repoA)
 
 	var buf bytes.Buffer
-	if err := runWorktreeList(scopeFor(t, "."), &buf); err != nil {
+	if err := runWorktreeList(scopeFor(t, "."), worktreeListOptions{}, &buf); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -139,7 +139,7 @@ func TestRunWorktreeList_DotNotTreatedAsNamePattern(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := runWorktreeList(scope, &buf); err != nil {
+	if err := runWorktreeList(scope, worktreeListOptions{}, &buf); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if strings.Contains(buf.String(), "my.repo") {
