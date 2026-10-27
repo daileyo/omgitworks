@@ -29,18 +29,19 @@ Profiles define git user.name, user.email, and optional signing configuration.
 They can be manually created or auto-detected from the includeIf directives in your git config.
 
 Commands:
-  gws user list                                    # List all profiles
-  gws user add work --email work@company.com       # Add a new profile
-  gws user show work                               # Show profile details
-  gws user remove work                             # Remove a profile
-  gws user assign my-repo work                     # Assign profile to repo
-  gws user sync                                    # Sync user info
+  omgw user list                                   # List all profiles
+  omgw user add work --email work@company.com      # Add a new profile
+  omgw user show work                              # Show profile details
+  omgw user remove work                            # Remove a profile
+  omgw user assign my-repo work                    # Assign profile to repo
+  omgw user assign work                            # Assign profile to the current repo
+  omgw user sync                                   # Sync user info
 
 Short flags:
-  gws user -l                                      # List all profiles
-  gws user -a work --email work@company.com        # Add a new profile
-  gws user -s work                                 # Show profile details
-  gws user -d work                                 # Remove a profile`,
+  omgw user -l                                     # List all profiles
+  omgw user -a work --email work@company.com       # Add a new profile
+  omgw user -s work                                # Show profile details
+  omgw user -d work                                # Remove a profile`,
 	Args:              cobra.ArbitraryArgs,
 	ValidArgsFunction: completeProfileThenNone,
 	RunE: func(cmd *cobra.Command, args []string) error {

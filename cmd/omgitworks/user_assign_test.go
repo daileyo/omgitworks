@@ -553,3 +553,31 @@ func TestUserAssign_ArgCount(t *testing.T) {
 		}
 	}
 }
+
+func TestUserAssign_HelpTextUsesOmgw(t *testing.T) {
+	if strings.Contains(userAssignCmd.Long, "gws ") {
+		t.Errorf("assign help still mentions gws:\n%s", userAssignCmd.Long)
+	}
+	if strings.Contains(userCmd.Long, "gws ") {
+		t.Errorf("user help still mentions gws:\n%s", userCmd.Long)
+	}
+	if got, want := userAssignCmd.Use, "assign [repository] <profile>"; got != want {
+		t.Errorf("Use = %q, want %q", got, want)
+	}
+}
+
+func TestUserAssign_HelpDocumentsBothForms(t *testing.T) {
+	for _, want := range []string{
+		"omgw user assign work",
+		"omgw user assign my-project work",
+		"current directory",
+		"explicit repository argument",
+	} {
+		if !strings.Contains(userAssignCmd.Long, want) {
+			t.Errorf("assign help missing %q", want)
+		}
+	}
+	if !strings.Contains(userCmd.Long, "omgw user assign work") {
+		t.Error("user help missing the one-argument assign example")
+	}
+}
