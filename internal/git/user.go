@@ -16,19 +16,21 @@ import (
 
 // UserConfig represents the git user configuration for a repository
 type UserConfig struct {
-	Name        string            // user.name value
-	Email       string            // user.email value
-	SigningKey  string            // user.signingkey value
-	SignCommits bool              // commit.gpgsign setting
-	Source      config.UserSource // Where the config comes from
+	Name          string            // user.name value
+	Email         string            // user.email value
+	SigningKey    string            // user.signingkey value
+	SignCommits   bool              // commit.gpgsign setting
+	SigningFormat string            // gpg.format value; empty means git's default (openpgp)
+	Source        config.UserSource // Where the config comes from
 }
 
 // GlobalUserConfig represents the user identity git uses outside any repository
 type GlobalUserConfig struct {
-	Name        string
-	Email       string
-	SigningKey  string
-	SignCommits bool
+	Name          string
+	Email         string
+	SigningKey    string
+	SignCommits   bool
+	SigningFormat string // gpg.format value; empty means git's default (openpgp)
 }
 
 // IncludeIfDirective is an [includeIf "<condition>"] path entry, with the path
@@ -39,7 +41,7 @@ type IncludeIfDirective struct {
 }
 
 // userKeysPattern matches every key that contributes to a user identity.
-const userKeysPattern = `^(user\.(name|email|signingkey)|commit\.gpgsign)$`
+const userKeysPattern = `^(user\.(name|email|signingkey)|commit\.gpgsign|gpg\.format)$`
 
 // configEntry is one value reported by git config, with where it came from.
 type configEntry struct {
@@ -104,10 +106,11 @@ func GetGlobalDefaultUser() (*GlobalUserConfig, error) {
 
 	eff := effectiveEntries(entries)
 	return &GlobalUserConfig{
-		Name:        eff["user.name"].value,
-		Email:       eff["user.email"].value,
-		SigningKey:  eff["user.signingkey"].value,
-		SignCommits: entryBool(eff["commit.gpgsign"]),
+		Name:          eff["user.name"].value,
+		Email:         eff["user.email"].value,
+		SigningKey:    eff["user.signingkey"].value,
+		SignCommits:   entryBool(eff["commit.gpgsign"]),
+		SigningFormat: eff["gpg.format"].value,
 	}, nil
 }
 
@@ -146,10 +149,11 @@ func ReadUserConfigFile(path string) (*GlobalUserConfig, error) {
 
 	eff := effectiveEntries(entries)
 	return &GlobalUserConfig{
-		Name:        eff["user.name"].value,
-		Email:       eff["user.email"].value,
-		SigningKey:  eff["user.signingkey"].value,
-		SignCommits: entryBool(eff["commit.gpgsign"]),
+		Name:          eff["user.name"].value,
+		Email:         eff["user.email"].value,
+		SigningKey:    eff["user.signingkey"].value,
+		SignCommits:   entryBool(eff["commit.gpgsign"]),
+		SigningFormat: eff["gpg.format"].value,
 	}, nil
 }
 
@@ -158,11 +162,12 @@ func ReadUserConfigFile(path string) (*GlobalUserConfig, error) {
 func resolveUserConfig(entries []configEntry) (*UserConfig, error) {
 	eff := effectiveEntries(entries)
 	userConfig := &UserConfig{
-		Name:        eff["user.name"].value,
-		Email:       eff["user.email"].value,
-		SigningKey:  eff["user.signingkey"].value,
-		SignCommits: entryBool(eff["commit.gpgsign"]),
-		Source:      config.UserSourceUnknown,
+		Name:          eff["user.name"].value,
+		Email:         eff["user.email"].value,
+		SigningKey:    eff["user.signingkey"].value,
+		SignCommits:   entryBool(eff["commit.gpgsign"]),
+		SigningFormat: eff["gpg.format"].value,
+		Source:        config.UserSourceUnknown,
 	}
 
 	identity := make([]configEntry, 0, 2)

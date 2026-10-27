@@ -199,7 +199,7 @@ Examples:
 			fmt.Printf("  Signing Key: %s\n", profile.SigningKey)
 		}
 		if profile.SignCommits {
-			fmt.Printf("  Sign Commits: yes\n")
+			fmt.Printf("  Sign Commits: yes (%s)\n", signingFormatLabel(profile.SigningFormat))
 		}
 
 		return nil
@@ -255,7 +255,7 @@ Examples:
 		}
 
 		if profile.SignCommits {
-			fmt.Printf("  Sign Commits: yes\n")
+			fmt.Printf("  Sign Commits: yes (%s)\n", signingFormatLabel(profile.SigningFormat))
 		} else {
 			fmt.Printf("  Sign Commits: no\n")
 		}
@@ -441,6 +441,17 @@ func completeProfileNames(toComplete string) ([]string, cobra.ShellCompDirective
 	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
+// signingFormatLabel names the signing mechanism for a gpg.format value.
+// Git signs with OpenPGP when gpg.format is unset, which is shown as "gpg".
+func signingFormatLabel(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "", "openpgp":
+		return "gpg"
+	default:
+		return strings.ToLower(strings.TrimSpace(format))
+	}
+}
+
 // displayProfileTable shows profiles in a formatted table
 func displayProfileTable(profiles []config.Profile) {
 	// Calculate column widths
@@ -476,7 +487,7 @@ func displayProfileTable(profiles []config.Profile) {
 	for _, p := range profiles {
 		signStr := ""
 		if p.SignCommits {
-			signStr = "✓"
+			signStr = "✓ (" + signingFormatLabel(p.SigningFormat) + ")"
 		}
 
 		fmt.Printf("%-*s  %-*s  %-*s  %s\n",

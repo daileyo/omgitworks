@@ -30,7 +30,7 @@ func writeGlobalGitConfig(t *testing.T, home, content string) {
 	}
 }
 
-const signedGlobalIdentity = "[user]\n\tname = Robert D\n\temail = robert@example.com\n\tsigningkey = " + testSigningKey + "\n[commit]\n\tgpgsign = true\n"
+const signedGlobalIdentity = "[user]\n\tname = Robert D\n\temail = robert@example.com\n\tsigningkey = " + testSigningKey + "\n[commit]\n\tgpgsign = true\n[gpg]\n\tformat = ssh\n"
 
 func TestSyncProfilesFromRepos_GlobalDefaultCarriesSigning(t *testing.T) {
 	home := isolateGitForSync(t)
@@ -51,6 +51,9 @@ func TestSyncProfilesFromRepos_GlobalDefaultCarriesSigning(t *testing.T) {
 	}
 	if !p.SignCommits {
 		t.Errorf("expected SignCommits to be true, got %+v", p)
+	}
+	if p.SigningFormat != "ssh" {
+		t.Errorf("expected signing format ssh, got %q", p.SigningFormat)
 	}
 }
 
@@ -114,7 +117,7 @@ func TestSyncProfilesFromRepos_BackfillsExistingProfileSigning(t *testing.T) {
 	if p.Name != "robertd" || p.Email != "Robert@Example.com" {
 		t.Errorf("expected the stored profile to keep its name and email, got %+v", p)
 	}
-	if p.SigningKey != testSigningKey || !p.SignCommits {
+	if p.SigningKey != testSigningKey || !p.SignCommits || p.SigningFormat != "ssh" {
 		t.Errorf("expected signing info to be backfilled, got %+v", p)
 	}
 }
@@ -169,23 +172,34 @@ func TestBackfillProfileSigning(t *testing.T) {
 		profile     config.Profile
 		key         string
 		sign        bool
+		format      string
 		wantChanged bool
 		want        config.Profile
 	}{
-		{"fills empty", config.Profile{}, "K", true, true, config.Profile{SigningKey: "K", SignCommits: true}},
-		{"keeps existing key", config.Profile{SigningKey: "A"}, "K", false, false, config.Profile{SigningKey: "A"}},
-		{"never clears sign", config.Profile{SignCommits: true}, "", false, false, config.Profile{SignCommits: true}},
-		{"nothing to add", config.Profile{}, "", false, false, config.Profile{}},
+		{"fills empty", config.Profile{}, "K", true, "ssh", true, config.Profile{SigningKey: "K", SignCommits: true, SigningFormat: "ssh"}},
+		{"keeps existing key", config.Profile{SigningKey: "A"}, "K", false, "", false, config.Profile{SigningKey: "A"}},
+		{"keeps existing format", config.Profile{SigningFormat: "openpgp"}, "", false, "ssh", false, config.Profile{SigningFormat: "openpgp"}},
+		{"never clears sign", config.Profile{SignCommits: true}, "", false, "", false, config.Profile{SignCommits: true}},
+		{"nothing to add", config.Profile{}, "", false, "", false, config.Profile{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := tt.profile
-			if got := backfillProfileSigning(&p, tt.key, tt.sign); got != tt.wantChanged {
+			if got := backfillProfileSigning(&p, tt.key, tt.sign, tt.format); got != tt.wantChanged {
 				t.Errorf("changed = %v, want %v", got, tt.wantChanged)
 			}
 			if p != tt.want {
 				t.Errorf("profile = %+v, want %+v", p, tt.want)
 			}
 		})
+	}
+}
+
+func TestSigningFormatLabel(t *testing.T) {
+	tests := map[string]string{"": "gpg", "openpgp": "gpg", "OpenPGP": "gpg", "ssh": "ssh", " SSH ": "ssh", "x509": "x509"}
+	for in, want := range tests {
+		if got := signingFormatLabel(in); got != want {
+			t.Errorf("signingFormatLabel(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
