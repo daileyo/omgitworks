@@ -83,6 +83,10 @@ Error: unknown shorthand flag: 'd' in -dirty
 
 ## Artifact: Full quality gate
 
+**What it proves:** Vet, golangci-lint, and the race-detector test run pass across every package after this task's changes.
+
+**Why it matters:** This is the same gate CI runs.
+
 **Command:**
 
 ~~~bash
