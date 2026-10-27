@@ -103,7 +103,7 @@ Rename the `STATUS` column of `omgw worktree list` to `ALIGNED` with `yes`/`no` 
 - [x] 2.11 `TestWorktreeListStatus_OptIn`: run with `worktreeListOptions{}` and assert `$HOME/.gws/status-cache.json` does not exist afterward, proving the pipeline was not invoked.
 - [x] 2.12 Produce `30-proofs/30-task-02-proofs.md` with transcripts of `omgw worktree list .` and `omgw worktree list . -s` from a scratch fixture built the same way, plus the `go test` output. Run `make ci`. Commit as `feat(worktree): show compact status in worktree list`.
 
-### [ ] 3.0 Add the full `STATUS` column with `-S` and define precedence
+### [x] 3.0 Add the full `STATUS` column with `-S` and define precedence
 
 Register `-S/--show-status` (sentinel-valued). When present, add a `STATUS` column holding icons only, after `ALIGNED`. When both `-s` and `-S` are given, `-S` wins and `BRANCH` stays plain. A detached worktree keeps `(detached)` in `BRANCH` with icons in whichever place the active mode puts them. Update the subcommand's `Long` help with the flag convention paragraph and attached-value examples.
 
@@ -117,14 +117,14 @@ Register `-S/--show-status` (sentinel-valued). When present, add a `STATUS` colu
 
 #### 3.0 Tasks
 
-- [ ] 3.1 Declare `flagWTShowStatus string`; register `--show-status`/`-S` with `NoOptDefVal = showColumnSentinel` and help text `Show a STATUS column, or show and filter with -S=<pattern>`.
-- [ ] 3.2 Extend `parseWorktreeListFlags`: when `--show-status` changed set `ShowStatus = true` and `CompactStatus = false`; take `FilterStatus` from the non-sentinel value of `-S`, letting a non-empty `-s` value override it, mirroring `parsePair` in `list.go`.
-- [ ] 3.3 Full rendering: when `opts.ShowStatus`, append a `STATUS` header after `ALIGNED` with width `max(6, maxIcons)`, and per row emit `formatStatusIcons(status, opts.ColorEnabled)` or blank when no status. Keep `BRANCH` plain in this mode.
-- [ ] 3.4 Detached handling: keep the `(detached)` substitution for an empty `Branch`; icons still append (compact) or populate `STATUS` (full) from the status fetched at the worktree path. Add a detached worktree to `statusFixture` via `git checkout --detach` inside a fourth worktree, or build it in the test that needs it.
-- [ ] 3.5 Rewrite `worktreeListCmd.Long`: keep the scoping paragraph, add the flag-convention paragraph from `listCmd.Long` adapted to two flags, state that the positional is always the repository, and add examples `omgw worktree list . -s`, `omgw worktree list my-repo -S`, `omgw worktree list -s=dirty`, `omgw worktree list my-repo -S=ahead`, and `omgw worktree list -s my-repo`.
-- [ ] 3.6 Tests: `TestWorktreeListStatus_Full` asserts the `STATUS` header, icons on each row, and that the `BRANCH` cell for `dirty` is exactly `dirty` padded. `TestWorktreeListStatus_ShowStatusWins` runs with both flags set and asserts the `STATUS` header exists and no icon appears within the `BRANCH` column span. `TestWorktreeListStatus_Detached` asserts `(detached)` in `BRANCH` and an icon in `STATUS` under `ShowStatus`.
-- [ ] 3.7 `TestWorktreeListHelp_StatusFlags`: use `helpListedFlags(t, worktreeListCmd)` to assert `status`, `show-status`, `color` are listed, and assert `worktreeListCmd.Long` contains `clean`, `dirty`, `ahead`, `behind`, and `-s=dirty`.
-- [ ] 3.8 Produce `30-proofs/30-task-03-proofs.md` with transcripts of `omgw worktree list . -S`, `omgw worktree list . -s -S`, and `omgw worktree list --help`. Run `make ci`. Commit as `feat(worktree): add the STATUS column to worktree list`.
+- [x] 3.1 Declare `flagWTShowStatus string`; register `--show-status`/`-S` with `NoOptDefVal = showColumnSentinel` and help text `Show a STATUS column, or show and filter with -S=<pattern>`.
+- [x] 3.2 Extend `parseWorktreeListFlags`: when `--show-status` changed set `ShowStatus = true` and `CompactStatus = false`; take `FilterStatus` from the non-sentinel value of `-S`, letting a non-empty `-s` value override it, mirroring `parsePair` in `list.go`.
+- [x] 3.3 Full rendering: when `opts.ShowStatus`, append a `STATUS` header after `ALIGNED` with width `max(6, maxIcons)`, and per row emit `formatStatusIcons(status, opts.ColorEnabled)` or blank when no status. Keep `BRANCH` plain in this mode.
+- [x] 3.4 Detached handling: keep the `(detached)` substitution for an empty `Branch`; icons still append (compact) or populate `STATUS` (full) from the status fetched at the worktree path. Add a detached worktree to `statusFixture` via `git checkout --detach` inside a fourth worktree, or build it in the test that needs it.
+- [x] 3.5 Rewrite `worktreeListCmd.Long`: keep the scoping paragraph, add the flag-convention paragraph from `listCmd.Long` adapted to two flags, state that the positional is always the repository, and add examples `omgw worktree list . -s`, `omgw worktree list my-repo -S`, `omgw worktree list -s=dirty`, `omgw worktree list my-repo -S=ahead`, and `omgw worktree list -s my-repo`.
+- [x] 3.6 Tests: `TestWorktreeListStatus_Full` asserts the `STATUS` header, icons on each row, and that the `BRANCH` cell for `dirty` is exactly `dirty` padded. `TestWorktreeListStatus_ShowStatusWins` runs with both flags set and asserts the `STATUS` header exists and no icon appears within the `BRANCH` column span. `TestWorktreeListStatus_Detached` asserts `(detached)` in `BRANCH` and an icon in `STATUS` under `ShowStatus`.
+- [x] 3.7 `TestWorktreeListHelp_StatusFlags`: use `helpListedFlags(t, worktreeListCmd)` to assert `status`, `show-status`, `color` are listed, and assert `worktreeListCmd.Long` contains `clean`, `dirty`, `ahead`, `behind`, and `-s=dirty`.
+- [x] 3.8 Produce `30-proofs/30-task-03-proofs.md` with transcripts of `omgw worktree list . -S`, `omgw worktree list . -s -S`, and `omgw worktree list --help`. Run `make ci`. Commit as `feat(worktree): add the STATUS column to worktree list`.
 
 ### [ ] 4.0 Filter worktrees by status and keep the positional as the repository
 

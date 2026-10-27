@@ -199,3 +199,92 @@ func TestWorktreeListStatus_OptIn(t *testing.T) {
 		t.Error("no status flag should leave the status cache untouched")
 	}
 }
+
+// addDetachedWorktree creates a worktree at a detached HEAD and returns its
+// config entry (an empty Branch), ready to pass to newStatusFixture.
+func detachedWorktree(t *testing.T) (string, config.Worktree) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "detached")
+	return path, config.Worktree{Path: path, Branch: "", Aligned: true}
+}
+
+// pathField returns the field of a (stripped) row that should hold the path.
+func pathField(t *testing.T, row string, index int) string {
+	t.Helper()
+	fields := strings.Fields(stripANSI(row))
+	if len(fields) <= index {
+		t.Fatalf("row has only %d fields: %q", len(fields), row)
+	}
+	return fields[index]
+}
+
+func TestWorktreeListStatus_Full(t *testing.T) {
+	newStatusFixture(t)
+	out := listWorktrees(t, worktreeScope{}, worktreeListOptions{ShowStatus: true})
+
+	header := strings.Split(out, "\n")[0]
+	if !strings.HasSuffix(strings.TrimRight(header, " "), "ALIGNED  STATUS") {
+		t.Errorf("header should end with ALIGNED then STATUS, got: %q", header)
+	}
+	for branch, icons := range map[string]string{"clean": "✓", "dirty": "✗", "ahead": "↑1 ✓"} {
+		row := rowFor(t, out, branch)
+		if !strings.HasSuffix(strings.TrimRight(row, " "), icons) {
+			t.Errorf("row for %s should end with its icons %q, got: %q", branch, icons, row)
+		}
+		// BRANCH stays plain: the field right after the branch is the path.
+		if p := pathField(t, row, 2); !strings.HasPrefix(p, "/") {
+			t.Errorf("BRANCH cell for %s should be plain, but the next field is %q", branch, p)
+		}
+	}
+}
+
+func TestWorktreeListStatus_ShowStatusWins(t *testing.T) {
+	newStatusFixture(t)
+	out := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true, ShowStatus: true})
+
+	if !strings.Contains(strings.Split(out, "\n")[0], "STATUS") {
+		t.Errorf("-s with -S should still show the STATUS column:\n%s", out)
+	}
+	row := rowFor(t, out, "ahead")
+	if p := pathField(t, row, 2); !strings.HasPrefix(p, "/") {
+		t.Errorf("-S should keep BRANCH plain, but the next field is %q", p)
+	}
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "↑1 ✓") {
+		t.Errorf("icons should be in the STATUS column, got: %q", row)
+	}
+}
+
+func TestWorktreeListStatus_Detached(t *testing.T) {
+	path, entry := detachedWorktree(t)
+	f := newStatusFixture(t, entry)
+	runGitIn(t, f.Repo, "worktree", "add", "--detach", path)
+
+	full := listWorktrees(t, worktreeScope{}, worktreeListOptions{ShowStatus: true})
+	row := rowFor(t, full, "(detached)")
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "✓") {
+		t.Errorf("detached worktree should show its icon in STATUS, got: %q", row)
+	}
+	if p := pathField(t, row, 2); !strings.HasPrefix(p, "/") {
+		t.Errorf("BRANCH should read (detached) with the path next, got: %q", row)
+	}
+
+	compact := listWorktrees(t, worktreeScope{}, worktreeListOptions{CompactStatus: true})
+	row = rowFor(t, compact, "(detached)")
+	if p := pathField(t, row, 2); p != "✓" {
+		t.Errorf("compact mode should append the icon after (detached), got: %q", row)
+	}
+}
+
+func TestWorktreeListHelp_StatusFlags(t *testing.T) {
+	listed := helpListedFlags(t, worktreeListCmd)
+	for _, name := range []string{"status", "show-status", "color"} {
+		if !listed[name] {
+			t.Errorf("help should list --%s", name)
+		}
+	}
+	for _, want := range []string{"clean", "dirty", "ahead", "behind", "-s=dirty", "-S wins"} {
+		if !strings.Contains(worktreeListCmd.Long, want) {
+			t.Errorf("help text should mention %q", want)
+		}
+	}
+}

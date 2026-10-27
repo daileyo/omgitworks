@@ -16,8 +16,9 @@ import (
 // list's flagStatus, flagColor, and flagWorkers so the two commands can never
 // clobber each other's state.
 var (
-	flagWTStatus string
-	flagWTColor  string
+	flagWTStatus     string
+	flagWTShowStatus string
+	flagWTColor      string
 )
 
 var worktreeListCmd = &cobra.Command{
@@ -30,16 +31,25 @@ Each entry shows the repository name, branch, path, and whether the worktree
 is aligned (inside the projects root).
 
 Passing "." lists only the repository the current directory belongs to. Omitting
-the argument continues to list every tracked repository.
+the argument continues to list every tracked repository. The positional
+argument is always the repository, so a status filter value must be attached
+to its flag: -s=dirty, -sdirty, or --status=dirty.
 
-Git status is opt-in. With -s, compact status icons (behind, ahead, clean or
-dirty) are shown after each branch name.
+Git status is opt-in and follows the same flag convention as "gws list":
+  -s  (lowercase) = compact status icons after the branch name
+  -S  (uppercase) = a separate STATUS column holding the icons
+  Either flag with a value also filters: clean, dirty, ahead, behind.
+  When both are given, -S wins.
 
 Examples:
   gws worktree list                 # List all worktrees
   gws worktree list my-repo         # List worktrees for my-repo only
   gws worktree list .               # List worktrees for the current repo
-  gws worktree list . -s            # Compact status after each branch`,
+  gws worktree list . -s            # Compact status after each branch
+  gws worktree list my-repo -S      # Full STATUS column for my-repo
+  gws worktree list -s=dirty        # Only worktrees with uncommitted changes
+  gws worktree list my-repo -S=ahead  # Only my-repo worktrees ahead of origin
+  gws worktree list -s my-repo      # my-repo is the repository, not a filter`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// The positional is always the repository argument. It is never
@@ -65,6 +75,9 @@ func init() {
 	worktreeListCmd.Flags().StringVarP(&flagWTStatus, "status", "s", "",
 		"Show compact status after the branch, or show and filter with -s=<pattern>")
 	worktreeListCmd.Flags().Lookup("status").NoOptDefVal = showColumnSentinel
+	worktreeListCmd.Flags().StringVarP(&flagWTShowStatus, "show-status", "S", "",
+		"Show a STATUS column, or show and filter with -S=<pattern>")
+	worktreeListCmd.Flags().Lookup("show-status").NoOptDefVal = showColumnSentinel
 	worktreeListCmd.Flags().StringVar(&flagWTColor, "color", "auto", "Color output: auto, always, never")
 
 	worktreeListCmd.ValidArgsFunction = completeWorktreeRepoOrDot
@@ -89,8 +102,18 @@ func (o worktreeListOptions) needsStatus() bool {
 // parseWorktreeListFlags reads cobra flag state into options.
 func parseWorktreeListFlags(cmd *cobra.Command) worktreeListOptions {
 	var opts worktreeListOptions
+	// Uppercase flag: a separate column. Its value, if any, is the filter.
+	if cmd.Flags().Changed("show-status") {
+		opts.ShowStatus = true
+		if flagWTShowStatus != showColumnSentinel && flagWTShowStatus != "" {
+			opts.FilterStatus = flagWTShowStatus
+		}
+	}
+	// Lowercase flag: compact icons unless -S already claimed the display.
+	// A non-empty value overrides the uppercase filter, as parsePair does
+	// for list.
 	if cmd.Flags().Changed("status") {
-		opts.CompactStatus = true
+		opts.CompactStatus = !opts.ShowStatus
 		if flagWTStatus != showColumnSentinel && flagWTStatus != "" {
 			opts.FilterStatus = flagWTStatus
 		}
@@ -193,35 +216,48 @@ func runWorktreeList(scope worktreeScope, opts worktreeListOptions, stdout io.Wr
 			}
 		}
 	}
-	// Compact mode widens BRANCH so the icons sit in their own sub-column.
-	if opts.CompactStatus && maxIcons > 0 {
+	// -S wins over -s: the icons go in their own column and BRANCH stays
+	// plain. Compact mode instead widens BRANCH so the icons sit in a
+	// sub-column after the branch name.
+	compact := opts.CompactStatus && !opts.ShowStatus
+	if compact && maxIcons > 0 {
 		maxBranch += 2 + maxIcons
+	}
+	statusWidth := 6 // "STATUS"
+	if maxIcons > statusWidth {
+		statusWidth = maxIcons
 	}
 
 	// Print header
-	fmt.Fprintf(stdout, "%s  %s  %s  %s\n",
-		padRight("REPO", maxRepo), padRight("BRANCH", maxBranch), padRight("PATH", maxPath), "ALIGNED")
-	fmt.Fprintf(stdout, "%s  %s  %s  %s\n",
-		strings.Repeat("-", maxRepo),
-		strings.Repeat("-", maxBranch),
-		strings.Repeat("-", maxPath),
-		strings.Repeat("-", 7))
+	header := []string{padRight("REPO", maxRepo), padRight("BRANCH", maxBranch), padRight("PATH", maxPath), "ALIGNED"}
+	separator := []string{strings.Repeat("-", maxRepo), strings.Repeat("-", maxBranch), strings.Repeat("-", maxPath), strings.Repeat("-", 7)}
+	if opts.ShowStatus {
+		header = append(header, "STATUS")
+		separator = append(separator, strings.Repeat("-", statusWidth))
+	}
+	fmt.Fprintln(stdout, strings.Join(header, "  "))
+	fmt.Fprintln(stdout, strings.Join(separator, "  "))
 
 	// Print rows
 	for _, e := range entries {
-		branchCell := e.branchLabel()
-		if opts.CompactStatus {
-			if s := statusMap[e.Path]; s != nil && s.Branch != "" {
-				icons := formatStatusIcons(s, opts.ColorEnabled)
-				padding := maxBranch - displayWidth(branchCell) - displayWidth(icons)
-				if padding < 2 {
-					padding = 2
-				}
-				branchCell += strings.Repeat(" ", padding) + icons
-			}
+		var icons string
+		if s := statusMap[e.Path]; s != nil && s.Branch != "" {
+			icons = formatStatusIcons(s, opts.ColorEnabled)
 		}
-		fmt.Fprintf(stdout, "%s  %s  %s  %s\n",
-			padRight(e.Repo, maxRepo), padRight(branchCell, maxBranch), padRight(e.Path, maxPath), e.alignedLabel())
+		branchCell := e.branchLabel()
+		if compact && icons != "" {
+			padding := maxBranch - displayWidth(branchCell) - displayWidth(icons)
+			if padding < 2 {
+				padding = 2
+			}
+			branchCell += strings.Repeat(" ", padding) + icons
+		}
+		row := []string{padRight(e.Repo, maxRepo), padRight(branchCell, maxBranch), padRight(e.Path, maxPath), e.alignedLabel()}
+		if opts.ShowStatus {
+			row[3] = padRight(row[3], 7)
+			row = append(row, icons)
+		}
+		fmt.Fprintln(stdout, strings.TrimRight(strings.Join(row, "  "), " "))
 	}
 
 	return nil
