@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daileyo/omgitworks/internal/config"
+	"github.com/daileyo/omgitworks/internal/repocontext"
 	"github.com/daileyo/omgitworks/internal/user"
 )
 
@@ -38,7 +39,7 @@ Examples:
   gws user assign my-project work         # Set work profile on my-project
   gws user assign my-project personal     # Set personal profile
   gws user assign my-project work --dry-run  # Preview changes`,
-	Args: cobra.ExactArgs(2),
+	Args: cobra.RangeArgs(1, 2),
 	RunE: func(_ *cobra.Command, args []string) error {
 		opts := userAssignOptions{useSubdirs: assignUseSubdirs, dryRun: assignDryRun}
 		return runUserAssign(args, opts, os.Stdin)
@@ -60,28 +61,34 @@ type userAssignOptions struct {
 // runUserAssign implements 'user assign'. in answers the --use-subdirs
 // confirmation prompt, so tests can drive it without a terminal.
 func runUserAssign(args []string, opts userAssignOptions, in io.Reader) error {
-	repoIdentifier := args[0]
-	profileName := args[1]
+	// The profile is always the last positional; a repository is present only
+	// when there are two. Later branches test repoArg, never len(args), so
+	// spec 30 can add -t without reordering them.
+	profileName := args[len(args)-1]
+	repoArg := ""
+	if len(args) == 2 {
+		repoArg = args[0]
+	}
+
+	// --use-subdirs moves the repository the shell may be standing in, so it
+	// needs an explicit repository. This runs before configuration is loaded
+	// and before the dry-run branch, so a preview never shows a move the real
+	// run would refuse.
+	if opts.useSubdirs && repoArg == "" {
+		return fmt.Errorf("--use-subdirs requires an explicit repository argument: omgw user assign <repository> <profile> --use-subdirs")
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
 
-	// Find the repository
-	repos := findRepositories(cfg, repoIdentifier)
-	if len(repos) == 0 {
-		return fmt.Errorf("no repository found matching: %s", repoIdentifier)
+	// The repository is resolved before the profile is looked up, matching
+	// the historical order, so each failure produces its own error.
+	repo, err := selectAssignTarget(cfg, repoArg)
+	if err != nil {
+		return err
 	}
-	if len(repos) > 1 {
-		fmt.Printf("Multiple repositories match '%s':\n", repoIdentifier)
-		for _, r := range repos {
-			fmt.Printf("  - %s (%s)\n", r.Name, r.Path)
-		}
-		return fmt.Errorf("please specify a more specific repository identifier")
-	}
-
-	repo := repos[0]
 
 	profile, err := lookupProfile(cfg, profileName)
 	if err != nil {
@@ -167,6 +174,32 @@ func runUserAssign(args []string, opts userAssignOptions, in io.Reader) error {
 	}
 
 	return nil
+}
+
+// selectAssignTarget picks the repository assign acts on. With no argument the
+// repository is resolved from the working directory, including from inside
+// one of its worktrees, and the resolver's error is returned unwrapped so it
+// reads the same as the worktree commands'. With an argument the working
+// directory is never inspected: the historical substring matcher applies, and
+// an ambiguous match is still an error. Bulk selection arrives with the tag
+// rows in spec 30, which extends this function.
+func selectAssignTarget(cfg *config.Config, repoArg string) (*config.Repository, error) {
+	if repoArg == "" {
+		return repocontext.ResolveCurrent(cfg)
+	}
+
+	repos := findRepositories(cfg, repoArg)
+	if len(repos) == 0 {
+		return nil, fmt.Errorf("no repository found matching: %s", repoArg)
+	}
+	if len(repos) > 1 {
+		fmt.Printf("Multiple repositories match '%s':\n", repoArg)
+		for _, r := range repos {
+			fmt.Printf("  - %s (%s)\n", r.Name, r.Path)
+		}
+		return nil, fmt.Errorf("please specify a more specific repository identifier")
+	}
+	return repos[0], nil
 }
 
 // lookupProfile finds a profile by name, checking stored profiles first and

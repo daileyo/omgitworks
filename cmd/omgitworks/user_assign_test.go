@@ -12,6 +12,7 @@ import (
 	"github.com/daileyo/omgitworks/internal/config"
 	"github.com/daileyo/omgitworks/internal/repocontext"
 	"github.com/daileyo/omgitworks/internal/user"
+	"github.com/daileyo/omgitworks/internal/xdg"
 )
 
 // setupAssignFixture creates a workspace tracking one initialized repository
@@ -290,4 +291,265 @@ func TestUserAssign_TwoArgs_UseSubdirsStillWorks(t *testing.T) {
 			t.Error(".git/config changed after canceling")
 		}
 	})
+}
+
+// restoreFile writes a snapshot back so a second run starts from the same state.
+func restoreFile(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("failed to restore %s: %v", path, err)
+	}
+}
+
+func TestUserAssign_OneArg_FromRepoRoot(t *testing.T) {
+	paths := setupAssignFixture(t, "alpha")
+	chdirForTest(t, paths["alpha"])
+
+	out, err := assignOut(t, []string{"work"}, userAssignOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertAssignedWork(t, "alpha", paths["alpha"], out)
+}
+
+func TestUserAssign_OneArg_FromSubdirectory(t *testing.T) {
+	paths := setupAssignFixture(t, "alpha")
+	deep := filepath.Join(paths["alpha"], "pkg", "deep")
+	if err := os.MkdirAll(deep, 0755); err != nil {
+		t.Fatalf("failed to create subdirectory: %v", err)
+	}
+	chdirForTest(t, deep)
+
+	out, err := assignOut(t, []string{"work"}, userAssignOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertAssignedWork(t, "alpha", paths["alpha"], out)
+}
+
+func TestUserAssign_OneArg_FromInsideWorktree(t *testing.T) {
+	_, repoDir := setupWorktreeTestRepo(t, "my-repo")
+
+	// Give the worktree fixture the same stored profiles as setupAssignFixture.
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	cfg.Profiles = []config.Profile{
+		{Name: "work", GitName: "Worker", Email: "work@example.com"},
+		{Name: "personal", GitName: "Person", Email: "personal@example.com"},
+	}
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("failed to save config: %v", err)
+	}
+
+	if err := runWorktreeAdd("my-repo", "feat-x"); err != nil {
+		t.Fatalf("failed to create the worktree: %v", err)
+	}
+	wt := projectsPath(t, "my-repo", "feat-x")
+	chdirForTest(t, wt)
+
+	out, err := assignOut(t, []string{"personal"}, userAssignOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error from inside a worktree: %v", err)
+	}
+
+	// The write landed on the owning repository's .git/config, which git
+	// shares with every worktree of that repository.
+	if got := localGitValue(t, repoDir, "user.email"); got != "personal@example.com" {
+		t.Errorf("main checkout user.email = %q, want personal@example.com", got)
+	}
+	if got := localGitValue(t, wt, "user.email"); got != "personal@example.com" {
+		t.Errorf("worktree sees user.email = %q, want personal@example.com", got)
+	}
+	repo := loadRepo(t, "my-repo")
+	if repo.Path != repoDir {
+		t.Errorf("stored Path = %q, want the owning repository %q", repo.Path, repoDir)
+	}
+	if repo.User != "Person" || repo.Email != "personal@example.com" || repo.UserSource != config.UserSourceLocal {
+		t.Errorf("stored identity = %q <%s> source %q", repo.User, repo.Email, repo.UserSource)
+	}
+	if !strings.Contains(out, "Assigned profile 'personal' to repository 'my-repo'") {
+		t.Errorf("output should name the owning repository:\n%s", out)
+	}
+}
+
+func TestUserAssign_OneArg_OutputMatchesTwoArgForm(t *testing.T) {
+	paths := setupAssignFixture(t, "alpha")
+	gitPath := filepath.Join(paths["alpha"], ".git", "config")
+	cfgPath, err := xdg.ConfigFile()
+	if err != nil {
+		t.Fatalf("failed to locate config: %v", err)
+	}
+	gitBefore := gitConfigBytes(t, paths["alpha"])
+	cfgBefore := configBytes(t)
+
+	twoArg, err := assignOut(t, []string{"alpha", "work"}, userAssignOptions{})
+	if err != nil {
+		t.Fatalf("two-argument form failed: %v", err)
+	}
+
+	restoreFile(t, gitPath, gitBefore)
+	restoreFile(t, cfgPath, cfgBefore)
+	chdirForTest(t, paths["alpha"])
+
+	oneArg, err := assignOut(t, []string{"work"}, userAssignOptions{})
+	if err != nil {
+		t.Fatalf("one-argument form failed: %v", err)
+	}
+	if oneArg != twoArg {
+		t.Errorf("one-argument output differs from two-argument output\n--- two ---\n%s--- one ---\n%s", twoArg, oneArg)
+	}
+}
+
+func TestUserAssign_TwoArgs_ResolverNotConsulted(t *testing.T) {
+	t.Run("from inside another tracked repository", func(t *testing.T) {
+		paths := setupAssignFixture(t, "alpha", "beta")
+		betaBefore := gitConfigBytes(t, paths["beta"])
+		chdirForTest(t, paths["beta"])
+
+		out, err := assignOut(t, []string{"alpha", "work"}, userAssignOptions{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		assertAssignedWork(t, "alpha", paths["alpha"], out)
+		if !bytes.Equal(betaBefore, gitConfigBytes(t, paths["beta"])) {
+			t.Error("the repository of the working directory was changed")
+		}
+	})
+
+	t.Run("from an untracked directory", func(t *testing.T) {
+		paths := setupAssignFixture(t, "alpha")
+		chdirForTest(t, t.TempDir())
+
+		out, err := assignOut(t, []string{"alpha", "work"}, userAssignOptions{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if errors.Is(err, repocontext.ErrNotTracked) {
+			t.Error("a named repository must never produce the resolver error")
+		}
+		assertAssignedWork(t, "alpha", paths["alpha"], out)
+	})
+}
+
+func TestUserAssign_OneArg_NotTracked(t *testing.T) {
+	paths := setupAssignFixture(t, "alpha")
+	gitBefore := gitConfigBytes(t, paths["alpha"])
+	cfgBefore := configBytes(t)
+	chdirForTest(t, t.TempDir())
+
+	out, err := assignOut(t, []string{"work"}, userAssignOptions{})
+	if !errors.Is(err, repocontext.ErrNotTracked) {
+		t.Fatalf("error = %v, want repocontext.ErrNotTracked", err)
+	}
+	if out != "" {
+		t.Errorf("expected no output, got:\n%s", out)
+	}
+	if !bytes.Equal(gitBefore, gitConfigBytes(t, paths["alpha"])) {
+		t.Error(".git/config changed after a failed resolution")
+	}
+	if !bytes.Equal(cfgBefore, configBytes(t)) {
+		t.Error("config.json changed after a failed resolution")
+	}
+}
+
+func TestUserAssign_OneArg_UnknownProfile_ReportsProfileError(t *testing.T) {
+	paths := setupAssignFixture(t, "alpha")
+	chdirForTest(t, paths["alpha"])
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	_, want := user.GetProfile(cfg, "nope")
+
+	_, err = assignOut(t, []string{"nope"}, userAssignOptions{})
+	if err == nil {
+		t.Fatal("expected an error for an unknown profile")
+	}
+	if errors.Is(err, repocontext.ErrNotTracked) {
+		t.Error("the repository resolved, so the resolver error must not be reported")
+	}
+	if err.Error() != want.Error() {
+		t.Errorf("error = %q, want the profile lookup error %q", err, want)
+	}
+}
+
+func TestUserAssign_OneArg_UseSubdirsRefused(t *testing.T) {
+	for _, dryRun := range []bool{false, true} {
+		name := "real run"
+		if dryRun {
+			name = "dry run"
+		}
+		t.Run(name, func(t *testing.T) {
+			paths := setupAssignFixture(t, "alpha")
+			gitBefore := gitConfigBytes(t, paths["alpha"])
+			cfgBefore := configBytes(t)
+			chdirForTest(t, paths["alpha"])
+
+			out, err := assignOut(t, []string{"work"}, userAssignOptions{useSubdirs: true, dryRun: dryRun})
+			if err == nil {
+				t.Fatal("expected --use-subdirs without a repository to be refused")
+			}
+			if !strings.Contains(err.Error(), "--use-subdirs requires an explicit repository argument") {
+				t.Errorf("error = %q", err)
+			}
+			if out != "" {
+				t.Errorf("refusal must happen before any output, got:\n%s", out)
+			}
+			if _, err := os.Stat(paths["alpha"]); err != nil {
+				t.Errorf("repository should not have moved: %v", err)
+			}
+			if !bytes.Equal(gitBefore, gitConfigBytes(t, paths["alpha"])) {
+				t.Error(".git/config changed")
+			}
+			if !bytes.Equal(cfgBefore, configBytes(t)) {
+				t.Error("config.json changed")
+			}
+			home, _ := os.UserHomeDir()
+			if _, err := os.Stat(filepath.Join(home, ".gitconfig")); !os.IsNotExist(err) {
+				t.Errorf("global gitconfig should not have been written, stat err = %v", err)
+			}
+		})
+	}
+}
+
+func TestUserAssign_OneArg_DryRunNamesResolvedRepo(t *testing.T) {
+	paths := setupAssignFixture(t, "alpha")
+	gitBefore := gitConfigBytes(t, paths["alpha"])
+	cfgBefore := configBytes(t)
+	chdirForTest(t, paths["alpha"])
+
+	out, err := assignOut(t, []string{"work"}, userAssignOptions{dryRun: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Dry run - would assign profile 'work' to repository 'alpha':") {
+		t.Errorf("dry run should name the resolved repository:\n%s", out)
+	}
+	if !bytes.Equal(gitBefore, gitConfigBytes(t, paths["alpha"])) {
+		t.Error("dry run changed .git/config")
+	}
+	if !bytes.Equal(cfgBefore, configBytes(t)) {
+		t.Error("dry run changed config.json")
+	}
+}
+
+func TestUserAssign_ArgCount(t *testing.T) {
+	cases := []struct {
+		args    []string
+		wantErr bool
+	}{
+		{nil, true},
+		{[]string{"work"}, false},
+		{[]string{"alpha", "work"}, false},
+		{[]string{"alpha", "work", "extra"}, true},
+	}
+	for _, tc := range cases {
+		err := userAssignCmd.Args(userAssignCmd, tc.args)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("Args(%v) error = %v, wantErr %v", tc.args, err, tc.wantErr)
+		}
+	}
 }
