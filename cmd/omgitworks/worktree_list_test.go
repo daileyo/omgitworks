@@ -44,7 +44,7 @@ func TestRunWorktreeList_AllWorktrees(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList(worktreeScope{}, &buf)
+	err := runWorktreeList(worktreeScope{}, worktreeListOptions{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -67,9 +67,9 @@ func TestRunWorktreeList_AllWorktrees(t *testing.T) {
 		t.Errorf("should show repo-b dev worktree, got:\n%s", output)
 	}
 
-	// Unaligned indicator
-	if !strings.Contains(output, "(unaligned)") {
-		t.Errorf("should show (unaligned) for hotfix worktree, got:\n%s", output)
+	// Header names the alignment column
+	if !strings.Contains(output, "ALIGNED") {
+		t.Errorf("header should contain ALIGNED, got:\n%s", output)
 	}
 
 	// Count lines (header + separator + 3 data rows)
@@ -99,7 +99,7 @@ func TestRunWorktreeList_FilterByRepo(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList(worktreeScope{NamePattern: "repo-a", Label: "repo-a"}, &buf)
+	err := runWorktreeList(worktreeScope{NamePattern: "repo-a", Label: "repo-a"}, worktreeListOptions{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestRunWorktreeList_NoWorktrees(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList(worktreeScope{}, &buf)
+	err := runWorktreeList(worktreeScope{}, worktreeListOptions{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestRunWorktreeList_NoWorktreesForRepo(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList(worktreeScope{NamePattern: "plain-repo", Label: "plain-repo"}, &buf)
+	err := runWorktreeList(worktreeScope{NamePattern: "plain-repo", Label: "plain-repo"}, worktreeListOptions{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestRunWorktreeList_UnalignedIndicator(t *testing.T) {
 	saveConfigForWorktreeTests(t, repos)
 
 	var buf bytes.Buffer
-	err := runWorktreeList(worktreeScope{}, &buf)
+	err := runWorktreeList(worktreeScope{}, worktreeListOptions{}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -182,10 +182,10 @@ func TestRunWorktreeList_UnalignedIndicator(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(alignedLine, "aligned") || strings.Contains(alignedLine, "(unaligned)") {
-		t.Errorf("aligned worktree should show 'aligned', got: %s", alignedLine)
+	if !strings.HasSuffix(strings.TrimRight(alignedLine, " "), "  yes") {
+		t.Errorf("aligned worktree should end with 'yes', got: %s", alignedLine)
 	}
-	if !strings.Contains(unalignedLine, "(unaligned)") {
-		t.Errorf("unaligned worktree should show '(unaligned)', got: %s", unalignedLine)
+	if !strings.HasSuffix(strings.TrimRight(unalignedLine, " "), "  no") {
+		t.Errorf("unaligned worktree should end with 'no', got: %s", unalignedLine)
 	}
 }
