@@ -20,6 +20,7 @@ var (
 	flagWTStatus     string
 	flagWTShowStatus string
 	flagWTColor      string
+	flagWTWorkers    int
 )
 
 var worktreeListCmd = &cobra.Command{
@@ -81,6 +82,7 @@ func init() {
 		"Show a STATUS column, or show and filter with -S=<pattern>")
 	worktreeListCmd.Flags().Lookup("show-status").NoOptDefVal = showColumnSentinel
 	worktreeListCmd.Flags().StringVar(&flagWTColor, "color", "auto", "Color output: auto, always, never")
+	worktreeListCmd.Flags().IntVar(&flagWTWorkers, "workers", 0, "Number of concurrent workers for status fetching (default: 8)")
 
 	worktreeListCmd.ValidArgsFunction = completeWorktreeRepoOrDot
 	worktreeCmd.AddCommand(worktreeListCmd)
@@ -121,6 +123,7 @@ func parseWorktreeListFlags(cmd *cobra.Command) worktreeListOptions {
 		}
 	}
 	opts.ColorEnabled = resolveColorEnabled(flagWTColor)
+	opts.Workers = flagWTWorkers
 	return opts
 }
 

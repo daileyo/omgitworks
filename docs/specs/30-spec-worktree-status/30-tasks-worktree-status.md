@@ -152,7 +152,7 @@ Give `-s=<pattern>`, `--status=<pattern>`, `-S=<pattern>`, and `--show-status=<p
 - [x] 4.8 `TestWorktreeListStatus_FilterEmpty`: `FilterStatus: "behind"` against the fixture prints `No worktrees found for 'fixture'` when scoped and `No worktrees found` when not, with nil error.
 - [x] 4.9 Produce `30-proofs/30-task-04-proofs.md` with a transcript of `omgw worktree list -s=dirty` across a two-repository scratch workspace and `omgw worktree list -s fixture`. Run `make ci`. Commit as `feat(worktree): filter worktree list by status`.
 
-### [ ] 5.0 Share the cache and honor `--workers`
+### [x] 5.0 Share the cache and honor `--workers`
 
 Register `--workers N` on `worktree list`, resolved by `resolveWorkers` (flag, then `status_workers` preference, then 8). Confirm by test that worktree status is written to and read from the same cache file `omgw list` uses, keyed by worktree path, and that a second run within the TTL reads without invoking git.
 
@@ -165,12 +165,12 @@ Register `--workers N` on `worktree list`, resolved by `resolveWorkers` (flag, t
 
 #### 5.0 Tasks
 
-- [ ] 5.1 Declare `flagWTWorkers int`; register `--workers` with default 0 and the same help text `list` uses. In `parseWorktreeListFlags` set `opts.Workers = flagWTWorkers`. `runWorktreeList` already calls `resolveWorkers(opts.Workers, cfg)` from 2.5.
-- [ ] 5.2 `TestWorktreeListStatus_CacheWritten`: after a compact run, read `$HOME/.gws/status-cache.json`, unmarshal into the `statuses` map, and assert a key equal to each worktree path with a non-zero `LastChecked`.
-- [ ] 5.3 `TestWorktreeListStatus_CacheHit`: run once to populate the cache, then set `t.Setenv("PATH", t.TempDir())` so no `git` binary is reachable, run again, and assert the same icons render. A cache miss would produce blank icons, so this proves no git call was made.
-- [ ] 5.4 `TestWorktreeListWorkers_Resolution`: three sub-cases through `resolveWorkers`: flag 3 with preference 5 gives 3; flag 0 with preference 5 gives 5; flag 0 and nil preferences gives 8. Also assert `helpListedFlags(t, worktreeListCmd)` includes `workers`.
-- [ ] 5.5 Verify the `list` flags are untouched: assert `flagWorkers` and `flagColor` in `list.go` are not read by any code path in `worktree_list.go` (grep in the proof file), so the two commands cannot clobber each other.
-- [ ] 5.6 Produce `30-proofs/30-task-05-proofs.md` with the transcript of `time omgw worktree list -s` run twice against the fixture, noting the absence of the spinner on the second run, plus the grep and test output. Run `make ci`. Commit as `feat(worktree): share the status cache and workers with worktree list`.
+- [x] 5.1 Declare `flagWTWorkers int`; register `--workers` with default 0 and the same help text `list` uses. In `parseWorktreeListFlags` set `opts.Workers = flagWTWorkers`. `runWorktreeList` already calls `resolveWorkers(opts.Workers, cfg)` from 2.5.
+- [x] 5.2 `TestWorktreeListStatus_CacheWritten`: after a compact run, read `$HOME/.gws/status-cache.json`, unmarshal into the `statuses` map, and assert a key equal to each worktree path with a non-zero `LastChecked`.
+- [x] 5.3 `TestWorktreeListStatus_CacheHit`: run once to populate the cache, then set `t.Setenv("PATH", t.TempDir())` so no `git` binary is reachable, run again, and assert the same icons render. A cache miss would produce blank icons, so this proves no git call was made.
+- [x] 5.4 `TestWorktreeListWorkers_Resolution`: three sub-cases through `resolveWorkers`: flag 3 with preference 5 gives 3; flag 0 with preference 5 gives 5; flag 0 and nil preferences gives 8. Also assert `helpListedFlags(t, worktreeListCmd)` includes `workers`.
+- [x] 5.5 Verify the `list` flags are untouched: assert `flagWorkers` and `flagColor` in `list.go` are not read by any code path in `worktree_list.go` (grep in the proof file), so the two commands cannot clobber each other.
+- [x] 5.6 Produce `30-proofs/30-task-05-proofs.md` with the transcript of `time omgw worktree list -s` run twice against the fixture, noting the absence of the spinner on the second run, plus the grep and test output. Run `make ci`. Commit as `feat(worktree): share the status cache and workers with worktree list`.
 
 ### [ ] 6.0 Document worktree status
 
