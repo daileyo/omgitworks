@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.5.0](https://github.com/daileyo/omgitworks/compare/v3.4.0...v3.5.0) (2026-10-27)
+
+
+### Features
+
+* **user:** assign a profile to the current repository ([6e4cc85](https://github.com/daileyo/omgitworks/commit/6e4cc85e77d9afe2b3e20acfab54b6c28038adc9))
+* **user:** complete assign arguments by context ([a8af28b](https://github.com/daileyo/omgitworks/commit/a8af28b0bf9057d9b33104cdd83447ff34721711))
+* **user:** document assign's current-repository form ([8dc5ba7](https://github.com/daileyo/omgitworks/commit/8dc5ba7cea9a94de3f0b348168225b67739a7837))
+
 ## [3.4.0](https://github.com/daileyo/omgitworks/compare/v3.3.0...v3.4.0) (2026-09-17)
 
 
